@@ -3,7 +3,7 @@ Thumbnail list widget for displaying images.
 """
 
 from PySide6.QtWidgets import QListWidget, QListWidgetItem
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QPixmap, QIcon
 from typing import List, Optional
 
@@ -18,7 +18,7 @@ class ThumbnailList(QListWidget):
         super().__init__(parent)
         
         # Set up the list widget
-        self.setIconSize(Qt.QSize(100, 100))
+        self.setIconSize(QSize(100, 100))
         self.setViewMode(QListWidget.IconMode)
         self.setResizeMode(QListWidget.Adjust)
         self.setSpacing(10)
