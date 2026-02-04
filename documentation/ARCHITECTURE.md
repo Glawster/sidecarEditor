@@ -11,7 +11,7 @@ Sidecar Editor is a Qt (PySide6) desktop application for reviewing and refining 
 The application is divided into two main layers:
 
 - **Core Logic (`src/`)**: Pure Python business logic with no Qt dependencies
-- **UI Layer (`ui/`)**: Qt-based user interface that consumes the core logic
+- **UI Layer (`Qt/`)**: Qt-based user interface that consumes the core logic
 
 This separation ensures:
 - Core logic can be reused by future CLI or batch tools
@@ -47,7 +47,7 @@ sidecarEditor/
 │   ├── outputResolver.py    # Original → output image lookup logic
 │   └── sidecarConfig.py     # Configuration wrapper around kohyaConfig
 │
-├── ui/                       # UI layer (Qt only)
+├── Qt/                       # UI layer (Qt only)
 │   ├── __init__.py
 │   ├── mainWindow.py        # QMainWindow with split layout
 │   └── widgets/

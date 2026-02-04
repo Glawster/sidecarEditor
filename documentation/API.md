@@ -355,7 +355,7 @@ Get or set all sidecar editor settings at once.
 
 ---
 
-## UI API (ui/)
+## UI API (Qt/)
 
 ### mainWindow.py
 

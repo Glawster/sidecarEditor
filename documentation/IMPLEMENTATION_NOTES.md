@@ -45,7 +45,7 @@ Core Layer (src/):
 ├── outputResolver.py   → Output image resolution strategies
 └── sidecarConfig.py    → Configuration wrapper
 
-UI Layer (ui/):
+UI Layer (Qt/):
 ├── mainWindow.py       → Main application window
 └── widgets/
     ├── thumbnailList.py   → Image grid widget
@@ -267,7 +267,7 @@ libxcb-cursor0  # For Qt XCB platform
 ### Code Organization
 
 - Core logic changes: Update `src/` modules only
-- UI changes: Update `ui/` modules only
+- UI changes: Update `Qt/` modules only
 - New features: Add to appropriate layer
 - Documentation: Keep all 4 docs updated
 

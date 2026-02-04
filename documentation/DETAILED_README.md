@@ -69,7 +69,7 @@ sidecarEditor/
 │   ├── sidecarCore.py       # Scan, load/save sidecars
 │   ├── outputResolver.py    # Original → output lookup logic
 │   └── sidecarConfig.py     # Config wrapper
-├── ui/                       # UI layer (Qt only)
+├── Qt/                       # UI layer (Qt only)
 │   ├── mainWindow.py        # Main application window
 │   └── widgets/
 │       ├── thumbnailList.py # Image list widget

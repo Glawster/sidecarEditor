@@ -52,7 +52,7 @@ sidecarEditor/
 │   ├── outputResolver.py    # Output image resolution
 │   └── sidecarConfig.py     # Configuration management
 │
-├── ui/                       # Qt user interface
+├── Qt/                       # Qt user interface
 │   ├── mainWindow.py        # Main application window
 │   └── widgets/             # Custom Qt widgets
 │
@@ -150,7 +150,7 @@ def validate_sidecar(sidecar: SidecarData) -> bool:
 
 ### Adding a New UI Widget
 
-1. Create in `ui/widgets/`
+1. Create in `Qt/widgets/`
 2. Inherit from appropriate Qt class
 3. Use signals for communication
 4. Keep logic minimal (delegate to core)
@@ -158,7 +158,7 @@ def validate_sidecar(sidecar: SidecarData) -> bool:
 
 Example:
 ```python
-# In ui/widgets/tagEditor.py
+# In Qt/widgets/tagEditor.py
 
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Signal
@@ -293,7 +293,7 @@ logger.info("Loading sidecar...")
 
 ### Adding a New Menu Item
 
-In `ui/mainWindow.py`:
+In `Qt/mainWindow.py`:
 
 ```python
 def _create_menu_bar(self):
