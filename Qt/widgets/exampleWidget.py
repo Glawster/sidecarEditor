@@ -27,8 +27,8 @@ class ExampleWidget(QWidget):
         super().__init__(parent)
         
         # Check if .ui file exists, otherwise fall back to programmatic UI
-        ui_file_path = Path(__file__).parent / "exampleWidget.ui"
-        if ui_file_path.exists():
+        self._ui_file_path = Path(__file__).parent / "exampleWidget.ui"
+        if self._ui_file_path.exists():
             self._load_ui_from_file()
         else:
             self._create_ui_programmatically()
@@ -42,13 +42,11 @@ class ExampleWidget(QWidget):
         This is the recommended approach when you have a .ui file.
         """
 
-        ui_file_path = Path(__file__).parent / "exampleWidget.ui"
-        
         # Create QUiLoader
         loader = QUiLoader()
         
         # Open and load the .ui file
-        ui_file = QFile(str(ui_file_path))
+        ui_file = QFile(str(self._ui_file_path))
         ui_file.open(QFile.ReadOnly)
         ui_widget = loader.load(ui_file, self)
         ui_file.close()
