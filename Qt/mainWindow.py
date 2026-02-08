@@ -49,26 +49,46 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         
-        # Path display bar
-        path_bar = QHBoxLayout()
+        # Path display bar - input and output stacked vertically
+        path_bar = QVBoxLayout()
         
-        path_bar.addWidget(QLabel("Input:"))
+        # Input row
+        input_row = QHBoxLayout()
+        input_row.addWidget(QLabel("Input:"))
         self._input_label = QLabel("Not set")
         self._input_label.setStyleSheet("color: gray;")
-        path_bar.addWidget(self._input_label, 1)
+        # Set fixed width for path labels to accommodate long paths
+        self._input_label.setMinimumWidth(400)
+        self._input_label.setMaximumWidth(400)
+        input_row.addWidget(self._input_label)
         
-        btn_set_input = QPushButton("Set Input Folder")
-        btn_set_input.clicked.connect(self._on_set_input_folder)
-        path_bar.addWidget(btn_set_input)
+        btnSetInput = QPushButton("Set Input Folder")
+        btnSetInput.setMinimumWidth(150)
+        btnSetInput.setMaximumWidth(150)
+        btnSetInput.clicked.connect(self._on_set_input_folder)
+        input_row.addWidget(btnSetInput)
+        input_row.addStretch()
         
-        path_bar.addWidget(QLabel("Output:"))
+        path_bar.addLayout(input_row)
+        
+        # Output row
+        output_row = QHBoxLayout()
+        output_row.addWidget(QLabel("Output:"))
         self._output_label = QLabel("Not set")
         self._output_label.setStyleSheet("color: gray;")
-        path_bar.addWidget(self._output_label, 1)
+        # Set fixed width for path labels to accommodate long paths
+        self._output_label.setMinimumWidth(400)
+        self._output_label.setMaximumWidth(400)
+        output_row.addWidget(self._output_label)
         
-        btn_set_output = QPushButton("Set Output Folder")
-        btn_set_output.clicked.connect(self._on_set_output_folder)
-        path_bar.addWidget(btn_set_output)
+        btnSetOutput = QPushButton("Set Output Folder")
+        btnSetOutput.setMinimumWidth(150)
+        btnSetOutput.setMaximumWidth(150)
+        btnSetOutput.clicked.connect(self._on_set_output_folder)
+        output_row.addWidget(btnSetOutput)
+        output_row.addStretch()
+        
+        path_bar.addLayout(output_row)
         
         main_layout.addLayout(path_bar)
         
@@ -78,6 +98,9 @@ class MainWindow(QMainWindow):
         # Left panel: Thumbnail list
         self._thumbnail_list = ThumbnailList()
         self._thumbnail_list.imageSelected.connect(self._on_image_selected)
+        # Set minimum width to accommodate 3 thumbnails (100px each + 10px spacing + margins)
+        # 3 * 100px (thumbnails) + 2 * 10px (spacing) + ~30px (margins/scrollbar) = ~350px
+        self._thumbnail_list.setMinimumWidth(350)
         main_splitter.addWidget(self._thumbnail_list)
         
         # Right panel: Splitter with preview and editor
@@ -98,7 +121,9 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(right_splitter)
         
         # Set initial sizes for main splitter
-        main_splitter.setSizes([250, 850])
+        # Left panel (thumbnails): 350px to fit 3 thumbnails wide
+        # Right panel (preview/editor): remaining space
+        main_splitter.setSizes([350, 850])
         
         main_layout.addWidget(main_splitter)
         
@@ -162,6 +187,9 @@ class MainWindow(QMainWindow):
         input_root = sidecarConfig.get_input_root()
         if input_root:
             self._set_input_root(input_root)
+            # Defer scanning images until after window is shown
+            # This prevents the app from appearing frozen on startup
+            QTimer.singleShot(100, self._scan_images)
         
         output_root = sidecarConfig.get_output_root()
         if output_root:
@@ -184,6 +212,9 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 "Welcome! Please set an input folder to get started (File > Set Input Folder)"
             )
+        else:
+            # If we have an input root, show loading message since thumbnails will be loading
+            self.statusBar().showMessage("Loading thumbnails...")
     
     def _on_set_input_folder(self):
         """Handle set input folder action."""
@@ -247,9 +278,14 @@ class MainWindow(QMainWindow):
         try:
             images = scan_images(self._input_root)
             self._current_images = images
-            self._thumbnail_list.load_images(images)
             
-            self.statusBar().showMessage(f"Found {len(images)} images")
+            # Show loading message for thumbnails
+            if images:
+                self.statusBar().showMessage(f"Loading thumbnails for {len(images)} images...")
+            
+            self._thumbnail_list.load_images(images, self._input_root)
+            
+            self.statusBar().showMessage(f"Loaded {len(images)} images")
             
             # Select last selected image if available
             last_image = sidecarConfig.get_last_selected_image()
