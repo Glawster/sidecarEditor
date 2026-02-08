@@ -4,10 +4,12 @@ import argparse
 import os
 import sys
 
-# Add parent directory to path to allow imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add tests directory to path to allow imports
+tests_dir = os.path.dirname(os.path.abspath(__file__))
+if tests_dir not in sys.path:
+    sys.path.insert(0, tests_dir)
 
-from tests.guiNamingLinter import lintFile, lintGuiNaming
+from guiNamingLinter import lintFile, lintGuiNaming
 
 
 def _lintTarget(target: str) -> None:

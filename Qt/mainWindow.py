@@ -305,14 +305,14 @@ class MainWindow(QMainWindow):
             )
             self.statusBar().showMessage("Error scanning images")
     
-    def _on_thumbnails_loaded(self, count: int):
+    def _on_thumbnails_loaded(self, image_count: int):
         """
         Handle thumbnails loaded event.
         
         Args:
-            count: Number of thumbnails loaded
+            image_count: Number of thumbnails loaded
         """
-        self.statusBar().showMessage(f"Loaded {count} images")
+        self.statusBar().showMessage(f"Loaded {image_count} images")
     
     def _on_refresh(self):
         """Handle refresh action."""
