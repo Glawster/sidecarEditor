@@ -25,6 +25,7 @@ class MainWindow(QMainWindow):
     """Main window for the Sidecar Editor application."""
     
     def __init__(self):
+
         super().__init__()
         
         self.setWindowTitle("Sidecar Editor")
@@ -43,6 +44,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(100, self._show_welcome)
     
     def _setup_ui(self):
+
         """Set up the user interface."""
         # Create central widget with main layout
         central_widget = QWidget()
@@ -98,6 +100,7 @@ class MainWindow(QMainWindow):
         # Left panel: Thumbnail list
         self._thumbnail_list = ThumbnailList()
         self._thumbnail_list.imageSelected.connect(self._on_image_selected)
+        self._thumbnail_list.thumbnailsLoaded.connect(self._on_thumbnails_loaded)
         # Set minimum width to accommodate 3 thumbnails (100px each + 10px spacing + margins)
         # 3 * 100px (thumbnails) + 2 * 10px (spacing) + ~30px (margins/scrollbar) = ~350px
         self._thumbnail_list.setMinimumWidth(350)
@@ -134,6 +137,7 @@ class MainWindow(QMainWindow):
         self.resize(1200, 800)
     
     def _create_menu_bar(self):
+
         """Create the menu bar."""
         menubar = self.menuBar()
         
@@ -172,6 +176,7 @@ class MainWindow(QMainWindow):
         help_menu.addAction(action_about)
     
     def _restore_state(self):
+
         """Restore window state and paths from config."""
         # Restore window geometry
         geometry = sidecarConfig.get_window_geometry()
@@ -244,6 +249,7 @@ class MainWindow(QMainWindow):
             self._set_output_root(folder)
     
     def _set_input_root(self, path: str):
+
         """
         Set the input root folder.
         
@@ -256,6 +262,7 @@ class MainWindow(QMainWindow):
         sidecarConfig.set_input_root(path)
     
     def _set_output_root(self, path: str):
+
         """
         Set the output root folder.
         
@@ -279,13 +286,12 @@ class MainWindow(QMainWindow):
             images = scan_images(self._input_root)
             self._current_images = images
             
-            # Show loading message for thumbnails
+            # Show loading message for thumbnails BEFORE loading starts
             if images:
                 self.statusBar().showMessage(f"Loading thumbnails for {len(images)} images...")
             
+            # Load images - this will emit thumbnailsLoaded signal when done
             self._thumbnail_list.load_images(images, self._input_root)
-            
-            self.statusBar().showMessage(f"Loaded {len(images)} images")
             
             # Select last selected image if available
             last_image = sidecarConfig.get_last_selected_image()
@@ -299,11 +305,21 @@ class MainWindow(QMainWindow):
             )
             self.statusBar().showMessage("Error scanning images")
     
+    def _on_thumbnails_loaded(self, count: int):
+        """
+        Handle thumbnails loaded event.
+        
+        Args:
+            count: Number of thumbnails loaded
+        """
+        self.statusBar().showMessage(f"Loaded {count} images")
+    
     def _on_refresh(self):
         """Handle refresh action."""
         self._scan_images()
     
     def _on_image_selected(self, image_path: str):
+
         """
         Handle image selection.
         

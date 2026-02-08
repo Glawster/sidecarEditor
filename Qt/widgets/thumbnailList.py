@@ -15,7 +15,11 @@ class ThumbnailList(QListWidget):
     # Signal emitted when an image is selected
     imageSelected = Signal(str)  # image_path
     
+    # Signal emitted when thumbnails have finished loading
+    thumbnailsLoaded = Signal(int)  # number of images loaded
+    
     def __init__(self, parent=None):
+
         super().__init__(parent)
         
         # Set up the list widget
@@ -32,6 +36,7 @@ class ThumbnailList(QListWidget):
         self._image_paths = []
     
     def load_images(self, image_paths: List[str], input_root: Optional[str] = None):
+
         """
         Load images into the thumbnail list.
         
@@ -72,8 +77,12 @@ class ThumbnailList(QListWidget):
             # No input_root, just add all images
             for img_path in image_paths:
                 self._add_thumbnail(img_path)
+        
+        # Emit signal when loading is complete
+        self.thumbnailsLoaded.emit(len(image_paths))
     
     def _add_thumbnail(self, image_path: str):
+
         """
         Add a single thumbnail to the list.
         
@@ -98,6 +107,7 @@ class ThumbnailList(QListWidget):
         self.addItem(item)
     
     def _add_separator(self, subfolder: str):
+
         """
         Add a separator item with subfolder name.
         
