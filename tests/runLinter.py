@@ -2,8 +2,12 @@
 
 import argparse
 import os
+import sys
 
-from organiseMyProjects.guiNamingLinter import lintFile, lintGuiNaming
+# Add the tests directory to the path so we can import guiNamingLinter
+sys.path.insert(0, os.path.dirname(__file__))
+
+from guiNamingLinter import lintFile, lintGuiNaming
 
 
 def _lintTarget(target: str) -> None:
