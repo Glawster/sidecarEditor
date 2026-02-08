@@ -104,7 +104,7 @@ class ThumbnailList(QListWidget):
         Args:
             subfolder: Name of the subfolder
         """
-        # Create a separator item
+        # Create a separator item with special styling to span full width
         separator = QListWidgetItem(f"📁 {subfolder}")
         separator.setData(Qt.UserRole, None)  # Mark as separator (no image path)
         separator.setFlags(Qt.ItemIsEnabled)  # Make it non-selectable
@@ -113,6 +113,10 @@ class ThumbnailList(QListWidget):
         font = QFont()
         font.setBold(True)
         separator.setFont(font)
+        
+        # Make separator take full width by setting size hint
+        # Use a large width to force it to span the entire row
+        separator.setSizeHint(QSize(10000, 30))
         
         self.addItem(separator)
     

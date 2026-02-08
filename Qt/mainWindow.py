@@ -57,6 +57,9 @@ class MainWindow(QMainWindow):
         input_row.addWidget(QLabel("Input:"))
         self._input_label = QLabel("Not set")
         self._input_label.setStyleSheet("color: gray;")
+        # Set fixed width for path labels to accommodate long paths
+        self._input_label.setMinimumWidth(400)
+        self._input_label.setMaximumWidth(400)
         input_row.addWidget(self._input_label)
         
         btnSetInput = QPushButton("Set Input Folder")
@@ -73,6 +76,9 @@ class MainWindow(QMainWindow):
         output_row.addWidget(QLabel("Output:"))
         self._output_label = QLabel("Not set")
         self._output_label.setStyleSheet("color: gray;")
+        # Set fixed width for path labels to accommodate long paths
+        self._output_label.setMinimumWidth(400)
+        self._output_label.setMaximumWidth(400)
         output_row.addWidget(self._output_label)
         
         btnSetOutput = QPushButton("Set Output Folder")
