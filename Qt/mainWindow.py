@@ -57,11 +57,14 @@ class MainWindow(QMainWindow):
         input_row.addWidget(QLabel("Input:"))
         self._input_label = QLabel("Not set")
         self._input_label.setStyleSheet("color: gray;")
-        input_row.addWidget(self._input_label, 1)
+        input_row.addWidget(self._input_label)
         
         btnSetInput = QPushButton("Set Input Folder")
+        btnSetInput.setMinimumWidth(150)
+        btnSetInput.setMaximumWidth(150)
         btnSetInput.clicked.connect(self._on_set_input_folder)
         input_row.addWidget(btnSetInput)
+        input_row.addStretch()
         
         path_bar.addLayout(input_row)
         
@@ -70,11 +73,14 @@ class MainWindow(QMainWindow):
         output_row.addWidget(QLabel("Output:"))
         self._output_label = QLabel("Not set")
         self._output_label.setStyleSheet("color: gray;")
-        output_row.addWidget(self._output_label, 1)
+        output_row.addWidget(self._output_label)
         
         btnSetOutput = QPushButton("Set Output Folder")
+        btnSetOutput.setMinimumWidth(150)
+        btnSetOutput.setMaximumWidth(150)
         btnSetOutput.clicked.connect(self._on_set_output_folder)
         output_row.addWidget(btnSetOutput)
+        output_row.addStretch()
         
         path_bar.addLayout(output_row)
         
@@ -170,6 +176,8 @@ class MainWindow(QMainWindow):
         input_root = sidecarConfig.get_input_root()
         if input_root:
             self._set_input_root(input_root)
+            # Scan images if input root was restored
+            self._scan_images()
         
         output_root = sidecarConfig.get_output_root()
         if output_root:
@@ -255,9 +263,14 @@ class MainWindow(QMainWindow):
         try:
             images = scan_images(self._input_root)
             self._current_images = images
+            
+            # Show loading message for thumbnails
+            if images:
+                self.statusBar().showMessage(f"Loading thumbnails for {len(images)} images...")
+            
             self._thumbnail_list.load_images(images, self._input_root)
             
-            self.statusBar().showMessage(f"Found {len(images)} images")
+            self.statusBar().showMessage(f"Loaded {len(images)} images")
             
             # Select last selected image if available
             last_image = sidecarConfig.get_last_selected_image()
