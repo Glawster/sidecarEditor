@@ -25,8 +25,11 @@
         <property name="placeholderText">
          <string>Enter the image generation prompt...</string>
         </property>
-        <property name="minimumHeight">
-         <number>150</number>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>150</height>
+         </size>
         </property>
        </widget>
       </item>
@@ -44,8 +47,11 @@
         <property name="placeholderText">
          <string>Enter negative prompt (optional)...</string>
         </property>
-        <property name="minimumHeight">
-         <number>100</number>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>100</height>
+         </size>
         </property>
        </widget>
       </item>
