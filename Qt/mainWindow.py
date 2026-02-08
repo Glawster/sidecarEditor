@@ -329,8 +329,6 @@ class MainWindow(QMainWindow):
         self._image_preview.set_images(image_path, output_path)
 
         # Update status
-        import os
-
         status = f"Loaded: {os.path.basename(image_path)}"
         if output_path:
             status += f" (output: {os.path.basename(output_path)})"
@@ -345,8 +343,6 @@ class MainWindow(QMainWindow):
         Args:
             image_path: Path to the image whose sidecar was saved
         """
-        import os
-
         self.statusBar().showMessage(
             f"Saved sidecar for {os.path.basename(image_path)}"
         )
