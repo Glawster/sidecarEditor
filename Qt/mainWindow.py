@@ -98,6 +98,9 @@ class MainWindow(QMainWindow):
         # Left panel: Thumbnail list
         self._thumbnail_list = ThumbnailList()
         self._thumbnail_list.imageSelected.connect(self._on_image_selected)
+        # Set minimum width to accommodate 3 thumbnails (100px each + 10px spacing + margins)
+        # 3 * 100px (thumbnails) + 2 * 10px (spacing) + ~30px (margins/scrollbar) = ~350px
+        self._thumbnail_list.setMinimumWidth(350)
         main_splitter.addWidget(self._thumbnail_list)
         
         # Right panel: Splitter with preview and editor
@@ -118,7 +121,9 @@ class MainWindow(QMainWindow):
         main_splitter.addWidget(right_splitter)
         
         # Set initial sizes for main splitter
-        main_splitter.setSizes([250, 850])
+        # Left panel (thumbnails): 350px to fit 3 thumbnails wide
+        # Right panel (preview/editor): remaining space
+        main_splitter.setSizes([350, 850])
         
         main_layout.addWidget(main_splitter)
         
