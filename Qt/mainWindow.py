@@ -187,8 +187,9 @@ class MainWindow(QMainWindow):
         input_root = sidecarConfig.get_input_root()
         if input_root:
             self._set_input_root(input_root)
-            # Scan images if input root was restored
-            self._scan_images()
+            # Defer scanning images until after window is shown
+            # This prevents the app from appearing frozen on startup
+            QTimer.singleShot(100, self._scan_images)
         
         output_root = sidecarConfig.get_output_root()
         if output_root:
@@ -211,6 +212,9 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 "Welcome! Please set an input folder to get started (File > Set Input Folder)"
             )
+        else:
+            # If we have an input root, show loading message since thumbnails will be loading
+            self.statusBar().showMessage("Loading thumbnails...")
     
     def _on_set_input_folder(self):
         """Handle set input folder action."""
