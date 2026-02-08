@@ -2,9 +2,10 @@
 Thumbnail list widget for displaying images.
 """
 
+from pathlib import Path
 from PySide6.QtWidgets import QListWidget, QListWidgetItem
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtGui import QPixmap, QIcon, QFont
 from typing import List, Optional
 
 
@@ -43,7 +44,6 @@ class ThumbnailList(QListWidget):
         
         # Group images by subfolder if input_root is provided
         if input_root:
-            from pathlib import Path
             groups = {}
             
             for img_path in image_paths:
@@ -110,7 +110,6 @@ class ThumbnailList(QListWidget):
         separator.setFlags(Qt.ItemIsEnabled)  # Make it non-selectable
         
         # Style the separator
-        from PySide6.QtGui import QFont
         font = QFont()
         font.setBold(True)
         separator.setFont(font)
