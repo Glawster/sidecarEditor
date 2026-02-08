@@ -12,9 +12,9 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction
 from typing import Optional
 
-from src import sidecarConfig
-from src.sidecarCore import scan_images, load_sidecar
-from src.outputResolver import OutputResolver
+from ..src import sidecarConfig
+from ..src.sidecarCore import scan_images, load_sidecar
+from ..src.outputResolver import OutputResolver
 
 from .widgets.thumbnailList import ThumbnailList
 from .widgets.imagePreview import ImagePreview
