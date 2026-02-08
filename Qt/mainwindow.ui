@@ -34,11 +34,17 @@
           <property name="styleSheet">
            <string>color: gray;</string>
           </property>
-          <property name="minimumWidth">
-           <number>400</number>
+          <property name="minimumSize">
+           <size>
+            <width>400</width>
+            <height>0</height>
+           </size>
           </property>
-          <property name="maximumWidth">
-           <number>400</number>
+          <property name="maximumSize">
+           <size>
+            <width>400</width>
+            <height>16777215</height>
+           </size>
           </property>
          </widget>
         </item>
@@ -47,11 +53,17 @@
           <property name="text">
            <string>Set Input Folder</string>
           </property>
-          <property name="minimumWidth">
-           <number>150</number>
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>0</height>
+           </size>
           </property>
-          <property name="maximumWidth">
-           <number>150</number>
+          <property name="maximumSize">
+           <size>
+            <width>150</width>
+            <height>16777215</height>
+           </size>
           </property>
          </widget>
         </item>
@@ -87,11 +99,17 @@
           <property name="styleSheet">
            <string>color: gray;</string>
           </property>
-          <property name="minimumWidth">
-           <number>400</number>
+          <property name="minimumSize">
+           <size>
+            <width>400</width>
+            <height>0</height>
+           </size>
           </property>
-          <property name="maximumWidth">
-           <number>400</number>
+          <property name="maximumSize">
+           <size>
+            <width>400</width>
+            <height>16777215</height>
+           </size>
           </property>
          </widget>
         </item>
@@ -100,11 +118,17 @@
           <property name="text">
            <string>Set Output Folder</string>
           </property>
-          <property name="minimumWidth">
-           <number>150</number>
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>0</height>
+           </size>
           </property>
-          <property name="maximumWidth">
-           <number>150</number>
+          <property name="maximumSize">
+           <size>
+            <width>150</width>
+            <height>16777215</height>
+           </size>
           </property>
          </widget>
         </item>
