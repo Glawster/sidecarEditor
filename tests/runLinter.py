@@ -2,8 +2,12 @@
 
 import argparse
 import os
+import sys
 
-from organiseMyProjects.guiNamingLinter import lintFile, lintGuiNaming
+# Add parent directory to path to allow imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from tests.guiNamingLinter import lintFile, lintGuiNaming
 
 
 def _lintTarget(target: str) -> None:
