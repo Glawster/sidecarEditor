@@ -62,13 +62,14 @@ from PySide6.QtCore import QFile  # NEVER! Qt in core logic
 
 ## Naming Conventions
 
-This project uses **snake_case** (not camelCase) for Python code:
+This project uses specific naming conventions:
 
-- **Modules**: `sidecar_core.py`, `output_resolver.py`
-- **Functions**: `load_sidecar()`, `scan_images()`, `get_sidecar_path()`
-- **Variables**: `image_path`, `sidecar_data`, `output_root`
-- **Classes**: `SidecarData`, `OutputResolver`, `MainWindow` (PascalCase)
-- **Constants**: `DEFAULT_EXTENSIONS`, `SIDECAR_SUFFIX`
+- **Modules**: camelCase files (e.g., `sidecarCore.py`, `outputResolver.py`)
+- **Functions**: snake_case (e.g., `load_sidecar()`, `scan_images()`, `get_sidecar_path()`)
+- **Variables**: snake_case (e.g., `image_path`, `sidecar_data`, `output_root`)
+- **Classes**: PascalCase (e.g., `SidecarData`, `OutputResolver`, `MainWindow`)
+- **Qt Signals**: camelCase (e.g., `imageSelected`, `sidecarSaved`)
+- **Constants**: UPPERCASE_WITH_UNDERSCORES (e.g., `DEFAULT_EXTENSIONS`, `SIDECAR_SUFFIX`)
 
 ## Sidecar File Format
 

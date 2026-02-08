@@ -19,9 +19,10 @@ These are generic development guidelines for Python projects using Qt (PySide6) 
 ### Naming Conventions
 - **Classes**: PascalCase (e.g., `MainWindow`, `ImagePreview`, `DataProcessor`)
 - **Functions and Variables**: snake_case (e.g., `process_data`, `calculate_total`, `load_config`)
+- **Qt Signals**: camelCase (e.g., `imageSelected`, `sidecarSaved`)
 - **Constants**: UPPERCASE_WITH_UNDERSCORES (e.g., `MAX_SIZE`, `DEFAULT_PATH`)
 - **Private Members**: Leading underscore (e.g., `_internal_method`, `_private_var`)
-- **Files**: snake_case for Python modules (e.g., `data_processor.py`, `file_utils.py`)
+- **Files**: camelCase for Python modules (e.g., `dataProcessor.py`, `fileUtils.py`)
 
 ### File Organization
 - **UI Code**: Separate GUI components from business logic
@@ -64,7 +65,7 @@ These are generic development guidelines for Python projects using Qt (PySide6) 
 
 ## Qt-Specific Patterns
 
-### Signal and Slot Communication
+### Signals and Slots Communication
 - Define custom signals using `Signal` from `PySide6.QtCore`
 - Connect signals to slots using `.connect()`
 - Emit signals to notify other components
