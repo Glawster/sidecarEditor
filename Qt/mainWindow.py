@@ -49,26 +49,34 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         
-        # Path display bar
-        path_bar = QHBoxLayout()
+        # Path display bar - input and output stacked vertically
+        path_bar = QVBoxLayout()
         
-        path_bar.addWidget(QLabel("Input:"))
+        # Input row
+        input_row = QHBoxLayout()
+        input_row.addWidget(QLabel("Input:"))
         self._input_label = QLabel("Not set")
         self._input_label.setStyleSheet("color: gray;")
-        path_bar.addWidget(self._input_label, 1)
+        input_row.addWidget(self._input_label, 1)
         
-        btn_set_input = QPushButton("Set Input Folder")
-        btn_set_input.clicked.connect(self._on_set_input_folder)
-        path_bar.addWidget(btn_set_input)
+        btnSetInput = QPushButton("Set Input Folder")
+        btnSetInput.clicked.connect(self._on_set_input_folder)
+        input_row.addWidget(btnSetInput)
         
-        path_bar.addWidget(QLabel("Output:"))
+        path_bar.addLayout(input_row)
+        
+        # Output row
+        output_row = QHBoxLayout()
+        output_row.addWidget(QLabel("Output:"))
         self._output_label = QLabel("Not set")
         self._output_label.setStyleSheet("color: gray;")
-        path_bar.addWidget(self._output_label, 1)
+        output_row.addWidget(self._output_label, 1)
         
-        btn_set_output = QPushButton("Set Output Folder")
-        btn_set_output.clicked.connect(self._on_set_output_folder)
-        path_bar.addWidget(btn_set_output)
+        btnSetOutput = QPushButton("Set Output Folder")
+        btnSetOutput.clicked.connect(self._on_set_output_folder)
+        output_row.addWidget(btnSetOutput)
+        
+        path_bar.addLayout(output_row)
         
         main_layout.addLayout(path_bar)
         
@@ -247,7 +255,7 @@ class MainWindow(QMainWindow):
         try:
             images = scan_images(self._input_root)
             self._current_images = images
-            self._thumbnail_list.load_images(images)
+            self._thumbnail_list.load_images(images, self._input_root)
             
             self.statusBar().showMessage(f"Found {len(images)} images")
             
