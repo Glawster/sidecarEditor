@@ -14,7 +14,7 @@ These are generic development guidelines for Python projects using Qt (PySide6) 
 - **Testing**: pytest for comprehensive test coverage
 - **Type hints**: Use type annotations where appropriate
 - **Documentation**: Docstrings for all public functions and classes
-- **Separation of Concerns**: Core business logic must have NO Qt dependencies
+- **Separation of Concerns**: Core business logic must have NO Qt dependencies (see additional-copilot-instructions.md for details)
 
 ### Naming Conventions
 - **Classes**: PascalCase (e.g., `MainWindow`, `ImagePreview`, `DataProcessor`)

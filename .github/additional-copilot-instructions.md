@@ -94,7 +94,9 @@ image.png.prompt.json.bak    # Backup (auto-created on save)
 
 ## Configuration Management
 
-Configuration is stored in `~/.config/kohya/kohyaConfig.json` under the `"sidecarEditor"` key:
+Configuration is stored in `~/.config/kohya/kohyaConfig.json` under the `"sidecarEditor"` key.
+
+**Note**: This project integrates with the [kohyaConfig](https://github.com/Glawster/linuxMigration) ecosystem, which is a shared configuration system used across multiple tools in the author's workflow.
 
 ```json
 {
