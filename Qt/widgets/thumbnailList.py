@@ -2,9 +2,10 @@
 Thumbnail list widget for displaying images.
 """
 
+from pathlib import Path
 from PySide6.QtWidgets import QListWidget, QListWidgetItem
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtGui import QPixmap, QIcon, QFont
 from typing import List, Optional
 
 
@@ -30,18 +31,47 @@ class ThumbnailList(QListWidget):
         # Store image paths
         self._image_paths = []
     
-    def load_images(self, image_paths: List[str]):
+    def load_images(self, image_paths: List[str], input_root: Optional[str] = None):
         """
         Load images into the thumbnail list.
         
         Args:
             image_paths: List of image file paths
+            input_root: Root input folder path (for subfolder separators)
         """
         self.clear()
         self._image_paths = image_paths
         
-        for img_path in image_paths:
-            self._add_thumbnail(img_path)
+        # Group images by subfolder if input_root is provided
+        if input_root:
+            groups = {}
+            
+            for img_path in image_paths:
+                # Get relative path from input_root
+                try:
+                    rel_path = Path(img_path).relative_to(Path(input_root))
+                    subfolder = str(rel_path.parent) if rel_path.parent != Path('.') else ''
+                except ValueError:
+                    # If image is not under input_root, use empty subfolder
+                    subfolder = ''
+                
+                if subfolder not in groups:
+                    groups[subfolder] = []
+                groups[subfolder].append(img_path)
+            
+            # Add images with separators between subfolders
+            for subfolder in sorted(groups.keys()):
+                # Add separator if it's not the first group or if subfolder is not empty
+                if subfolder:
+                    self._add_separator(subfolder)
+                
+                # Add thumbnails for this subfolder
+                for img_path in groups[subfolder]:
+                    self._add_thumbnail(img_path)
+        else:
+            # No input_root, just add all images
+            for img_path in image_paths:
+                self._add_thumbnail(img_path)
     
     def _add_thumbnail(self, image_path: str):
         """
@@ -67,6 +97,29 @@ class ThumbnailList(QListWidget):
         item.setData(Qt.UserRole, image_path)  # Store full path
         self.addItem(item)
     
+    def _add_separator(self, subfolder: str):
+        """
+        Add a separator item with subfolder name.
+        
+        Args:
+            subfolder: Name of the subfolder
+        """
+        # Create a separator item with special styling to span full width
+        separator = QListWidgetItem(f"📁 {subfolder}")
+        separator.setData(Qt.UserRole, None)  # Mark as separator (no image path)
+        separator.setFlags(Qt.ItemIsEnabled)  # Make it non-selectable
+        
+        # Style the separator
+        font = QFont()
+        font.setBold(True)
+        separator.setFont(font)
+        
+        # Make separator take full width by setting size hint
+        # Use a large width to force it to span the entire row
+        separator.setSizeHint(QSize(10000, 30))
+        
+        self.addItem(separator)
+    
     def _on_selection_changed(self, current: Optional[QListWidgetItem], previous: Optional[QListWidgetItem]):
         """
         Handle selection change.
@@ -77,6 +130,7 @@ class ThumbnailList(QListWidget):
         """
         if current:
             image_path = current.data(Qt.UserRole)
+            # Only emit signal if it's an actual image (not a separator)
             if image_path:
                 self.imageSelected.emit(image_path)
     
