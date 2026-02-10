@@ -19,6 +19,7 @@ _config_cache: Dict[str, Any] = {}
 
 
 def _load_config() -> Dict[str, Any]:
+
     """Load configuration (placeholder until kohyaConfig is integrated)."""
     # TODO: Replace with kohyaConfig.loadConfig()
     import json
@@ -37,6 +38,7 @@ def _load_config() -> Dict[str, Any]:
 
 
 def _save_config(config: Dict[str, Any]):
+
     """Save configuration (placeholder until kohyaConfig is integrated)."""
     # TODO: Replace with kohyaConfig.saveConfig(config)
     import json
@@ -66,14 +68,23 @@ def _save_sidecar_section(section: Dict[str, Any]):
 
 
 def get_input_root() -> Optional[str]:
+
     """
     Get the last-used input root directory.
+    First checks sidecarEditor section, then falls back to train_data_dir from kohya config.
     
     Returns:
         Input root path or None if not set
     """
     section = _get_sidecar_section()
-    return section.get('inputRoot')
+    input_root = section.get('inputRoot')
+    
+    # If not set in sidecarEditor section, try to get from kohya config
+    if not input_root:
+        config = _load_config()
+        input_root = config.get('train_data_dir')
+    
+    return input_root
 
 
 def set_input_root(path: str):
@@ -89,14 +100,23 @@ def set_input_root(path: str):
 
 
 def get_output_root() -> Optional[str]:
+
     """
     Get the last-used output root directory.
+    First checks sidecarEditor section, then falls back to output_dir from kohya config.
     
     Returns:
         Output root path or None if not set
     """
     section = _get_sidecar_section()
-    return section.get('outputRoot')
+    output_root = section.get('outputRoot')
+    
+    # If not set in sidecarEditor section, try to get from kohya config
+    if not output_root:
+        config = _load_config()
+        output_root = config.get('output_dir')
+    
+    return output_root
 
 
 def set_output_root(path: str):
