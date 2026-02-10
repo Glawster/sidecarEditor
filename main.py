@@ -6,7 +6,7 @@ Run with: python -m sidecarEditor
 import sys
 from PySide6.QtWidgets import QApplication
 
-from .Qt.mainWindow import MainWindow
+from .Qt.widgets.mainWindow import MainWindow
 
 
 def main():
