@@ -80,10 +80,55 @@ Example sidecar content:
 ```
 sidecarEditor/
 ├── src/              # Core logic (no Qt dependencies)
-├── ui/               # Qt user interface
+├── Qt/               # Qt user interface
+│   ├── mainWindow.py         # Main application window
+│   ├── mainWindow.ui         # UI definition (Qt Designer)
+│   └── widgets/              # Custom widgets
+│       ├── editorPanel.py
+│       ├── editorPanel.ui    # UI definition (Qt Designer)
+│       ├── imagePreview.py
+│       ├── imagePreview.ui   # UI definition (Qt Designer)
+│       ├── thumbnailList.py
+│       └── exampleWidget.py  # Example showing .ui integration
 ├── documentation/    # All documentation files
+│   ├── QT_DESIGNER_GUIDE.md  # Qt Designer integration guide
+│   └── ...
 ├── __main__.py       # Application entry point
 └── requirements.txt  # Dependencies
+```
+
+## UI Development with Qt Designer
+
+This project supports **Qt Designer** for visual UI design. You can:
+
+- Design UI layouts visually using Qt Designer
+- Load .ui files dynamically at runtime
+- Maintain separation between UI design and business logic
+
+### Quick Start with Qt Designer
+
+1. **Open Qt Designer** (included with PySide6)
+2. **Create/Edit .ui files** in the `Qt/` directory
+3. **Follow naming conventions**: Use proper widget prefixes (btn, lbl, ent, etc.)
+4. **Load in Python**: Use `QUiLoader` to load .ui files
+
+See **[Qt Designer Integration Guide](documentation/QT_DESIGNER_GUIDE.md)** for detailed instructions.
+
+### Example Workflow
+
+```python
+# widgets/myWidget.py
+from PySide6.QtUiTools import QUiLoader
+from PySide6.QtCore import QFile
+
+# Load UI from .ui file
+ui_file = QFile("myWidget.ui")
+ui_file.open(QFile.ReadOnly)
+widget = QUiLoader().load(ui_file)
+ui_file.close()
+
+# Access widgets and connect signals
+widget.btnSave.clicked.connect(self._on_save)
 ```
 
 ## Features in Detail
@@ -118,7 +163,8 @@ sidecarEditor/
 
 - **Separation of Concerns**: Core logic is Qt-independent
 - **Reusable Core**: Business logic can be used by CLI tools
-- **Clean UI Layer**: Qt widgets only in `ui/` directory
+- **Clean UI Layer**: Qt widgets only in `Qt/` directory
+- **Qt Designer Support**: Visual UI design with .ui files
 - **Type Hints**: Modern Python with type annotations
 
 ### Running from Source
