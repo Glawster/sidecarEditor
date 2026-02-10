@@ -54,14 +54,37 @@ sidecarEditor/
 │
 ├── Qt/                       # Qt user interface
 │   ├── mainWindow.py        # Main application window
+│   ├── mainWindow.ui         # Main window UI (optional)
 │   └── widgets/             # Custom Qt widgets
+│       ├── *.py             # Widget Python code
+│       └── *.ui             # Widget UI files (Qt Designer)
 │
 ├── documentation/            # Documentation files
-├── tests/                    # Test files (if added)
+│   ├── QT_DESIGNER_GUIDE.md      # Qt Designer integration guide
+│   ├── QT_DESIGNER_WORKFLOW.md   # Qt Designer workflow
+│   └── QT_DESIGNER_QUICKREF.md   # Quick reference
+├── tests/                    # Test files and linters
 ├── __main__.py              # Entry point
 ├── requirements.txt         # Runtime dependencies
 └── dev-requirements.txt     # Development dependencies
 ```
+
+## UI Development with Qt Designer
+
+This project supports Qt Designer for visual UI design. See:
+
+- **[Qt Designer Guide](QT_DESIGNER_GUIDE.md)** - Comprehensive guide to using Qt Designer
+- **[Qt Designer Workflow](QT_DESIGNER_WORKFLOW.md)** - Step-by-step workflows and examples
+- **[Qt Designer Quick Reference](QT_DESIGNER_QUICKREF.md)** - Quick reference card
+
+### Quick Start
+
+1. Design UI in Qt Designer (visual tool)
+2. Save .ui file with proper widget naming
+3. Load .ui file dynamically in Python
+4. Connect signals and implement logic
+
+See the example widget at `Qt/widgets/exampleWidget.py` for a complete reference implementation.
 
 ## Coding Standards
 
