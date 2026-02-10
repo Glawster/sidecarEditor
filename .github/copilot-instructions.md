@@ -123,28 +123,26 @@ These are generic development guidelines for Python projects using Qt (PySide6) 
 
 ## Error Handling & Logging
 
+### How to use logUtils
+
 ### Logging Standards
-- Use centralized logging configuration
+- Use centralized logging configuration (from organiseMyProjects)
 - Include module name and operation context
 - Log at appropriate levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - Store logs with timestamp and rotation as appropriate
 
 ### Logging Guidelines
-- Use Python's standard logging module
-- Configure logging at application startup
-- **Message Format**: Keep messages descriptive and consistent
-- **Information**: Use logger.info() for normal operations
-- **Warnings**: Use logger.warning() for unexpected but handled situations
-- **Errors**: Use logger.error() for errors with context
-- **Debug**: Use logger.debug() for detailed debugging information
+- **Message Format**: Keep messages lowercase and consistent
+- **Major Actions**: `"doing something..."` - action being initiated
+- **Action Completion**: `"...something done"` - action completed
+- **General Updates**: `"...message"` - informational updates
+- **Information Display**: `"...message: value"` - displaying data
+- **Error Messages**: Use Sentence Case for ERROR level messages
 - **Usage Example**: 
   ```python
-  import logging
-  
-  logger = logging.getLogger(__name__)
-  
-  logger.info("Loading image: %s", image_path)
-  logger.error("Failed to load sidecar: %s", error)
+  from src.logUtils import logger  # or appropriate import
+  logger.info("...processing data")
+  logger.error("Failed to process: error details")
   ```
 
 ### Error Recovery
