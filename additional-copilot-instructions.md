@@ -118,23 +118,21 @@ def longer_method(self, data):
 All logging must follow these conventions:
 
 1. **Message Format**: Keep messages **lowercase** unless logging an error
-2. **Major Actions**: `"...doing something"` - action being initiated
-3. **Action Completion**: `"...something done"` - action completed
+2. **Major Actions**: `"doing something..."` - action being initiated (ellipsis at END)
+3. **Action Completion**: `"...something done"` - action completed (ellipsis at START)
 4. **General Updates**: `"...message"` - informational updates
-5. **Information Display**: `"...key: value"` - reporting variables
+5. **Information Display**: `"...message: value"` - displaying data
 6. **Error Messages**: Use **Sentence Case** for ERROR level messages
 
 ### Logging Examples
 
 ```python
-import logging
-
-logger = logging.getLogger(__name__)
+from src.logUtils import logger  # or appropriate import
 
 def load_sidecar(image_path: str):
     """Load sidecar with proper logging."""
     try:
-        logger.info("...loading sidecar")
+        logger.info("loading sidecar...")
         logger.info(f"...image path: {image_path}")
         
         # Do work
@@ -153,9 +151,9 @@ def load_sidecar(image_path: str):
 
 ### Logging Guidelines
 
-- Use centralized logging configuration (when available)
+- Use centralized logging configuration
 - Include module name and operation context
-- Log at appropriate levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+- Log at appropriate levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - Store logs with timestamp and rotation as appropriate
 - When logging collections, log one entry per line or as a formatted list
 
