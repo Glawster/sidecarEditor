@@ -62,23 +62,28 @@ class MainWindow(QMainWindow):
         if not ui_file.open(QFile.ReadOnly):
             raise RuntimeError(f"Failed to open UI file: {ui_file_path}")
 
-        # Load UI into this QMainWindow
-        # Note: We need to load the content, not create a new window
-        ui_widget = loader.load(ui_file, self)
+        # Load the UI - this creates a QMainWindow with all its properties
+        # Keep a reference to prevent garbage collection of actions
+        self._loaded_window = loader.load(ui_file, None)
         ui_file.close()
 
-        # Copy window properties from loaded widget to this MainWindow
-        self.setWindowTitle(ui_widget.windowTitle())
+        # Copy window properties from loaded window
+        self.setWindowTitle(self._loaded_window.windowTitle())
+        self.setGeometry(self._loaded_window.geometry())
 
-        # Extract UI elements from the loaded widget
-        # Get references to widgets defined in the .ui file
-        self._input_label = ui_widget.findChild(QLabel, "lblInputPath")
-        self._output_label = ui_widget.findChild(QLabel, "lblOutputPath")
-        btnSetInput = ui_widget.findChild(QPushButton, "btnSetInput")
-        btnSetOutput = ui_widget.findChild(QPushButton, "btnSetOutput")
+        # Extract the central widget from the loaded window
+        loaded_central = self._loaded_window.centralWidget()
+        if not loaded_central:
+            raise RuntimeError("Loaded UI has no central widget")
+
+        # Extract UI elements from the loaded central widget
+        self._input_label = loaded_central.findChild(QLabel, "lblInputPath")
+        self._output_label = loaded_central.findChild(QLabel, "lblOutputPath")
+        btnSetInput = loaded_central.findChild(QPushButton, "btnSetInput")
+        btnSetOutput = loaded_central.findChild(QPushButton, "btnSetOutput")
 
         # Get the main content widget where we'll add the splitters
-        main_content_widget = ui_widget.findChild(QWidget, "wgtMainContent")
+        main_content_widget = loaded_central.findChild(QWidget, "wgtMainContent")
 
         # Verify all required widgets were found
         if not all([self._input_label, self._output_label, btnSetInput, btnSetOutput, main_content_widget]):
@@ -125,17 +130,38 @@ class MainWindow(QMainWindow):
 
         content_layout.addWidget(main_splitter)
 
-        # Set the loaded widget as central widget
-        self.setCentralWidget(ui_widget)
+        # Set the loaded central widget as our central widget
+        self.setCentralWidget(loaded_central)
 
-        # Get menu actions from the UI file
-        self._action_set_input = ui_widget.findChild(QAction, "actionSetInputFolder")
-        self._action_set_output = ui_widget.findChild(QAction, "actionSetOutputFolder")
-        self._action_refresh = ui_widget.findChild(QAction, "actionRefresh")
-        self._action_exit = ui_widget.findChild(QAction, "actionExit")
-        self._action_about = ui_widget.findChild(QAction, "actionAbout")
+        # Get menu actions from the loaded window and add them to our menu bar
+        self._action_set_input = self._loaded_window.findChild(QAction, "actionSetInputFolder")
+        self._action_set_output = self._loaded_window.findChild(QAction, "actionSetOutputFolder")
+        self._action_refresh = self._loaded_window.findChild(QAction, "actionRefresh")
+        self._action_exit = self._loaded_window.findChild(QAction, "actionExit")
+        self._action_about = self._loaded_window.findChild(QAction, "actionAbout")
 
-        # Status bar is already created in the .ui file
+        # Recreate menu structure with the actions from the loaded window
+        menubar = self.menuBar()
+
+        # File menu
+        file_menu = menubar.addMenu("&File")
+        if self._action_set_input:
+            file_menu.addAction(self._action_set_input)
+        if self._action_set_output:
+            file_menu.addAction(self._action_set_output)
+        file_menu.addSeparator()
+        if self._action_refresh:
+            file_menu.addAction(self._action_refresh)
+        file_menu.addSeparator()
+        if self._action_exit:
+            file_menu.addAction(self._action_exit)
+
+        # Help menu
+        help_menu = menubar.addMenu("&Help")
+        if self._action_about:
+            help_menu.addAction(self._action_about)
+
+        # Status bar
         self.statusBar().showMessage("Ready")
 
     def _connect_signals(self):
