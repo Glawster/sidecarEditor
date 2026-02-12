@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
     QSplitter,
     QFileDialog,
     QMessageBox,
@@ -19,7 +18,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, QFile
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtGui import QAction
 from typing import Optional
 
 from ...src import sidecarConfig
@@ -38,8 +36,6 @@ class MainWindow(QMainWindow):
 
         super().__init__()
 
-        self.setWindowTitle("Sidecar Editor")
-
         # Initialize components
         self._output_resolver = OutputResolver()
         self._current_images = []
@@ -47,7 +43,7 @@ class MainWindow(QMainWindow):
         self._output_root: Optional[str] = None
 
         self._setup_ui()
-        self._create_menu_bar()
+        self._connect_signals()
         self._restore_state()
 
         # Show welcome message after window is shown
@@ -55,62 +51,47 @@ class MainWindow(QMainWindow):
 
     def _setup_ui(self):
 
-        """Set up the user interface."""
-        # Create central widget with main layout
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout(central_widget)
-
-        # Path display bar - input and output stacked vertically
-        path_bar = QVBoxLayout()
-
-        # Input row
-        input_row = QHBoxLayout()
-        input_row.addWidget(QLabel("Input:"))
-        self._input_label = QLabel("Not set")
-        self._input_label.setStyleSheet("color: gray;")
-        # Set fixed width for path labels to accommodate long paths
-        self._input_label.setMinimumWidth(400)
-        self._input_label.setMaximumWidth(400)
-        input_row.addWidget(self._input_label)
-
-        btnSetInput = QPushButton("Set Input Folder")
-        btnSetInput.setMinimumWidth(150)
-        btnSetInput.setMaximumWidth(150)
-        btnSetInput.clicked.connect(self._on_set_input_folder)
-        input_row.addWidget(btnSetInput)
-        input_row.addStretch()
-
-        path_bar.addLayout(input_row)
-
-        # Output row
-        output_row = QHBoxLayout()
-        output_row.addWidget(QLabel("Output:"))
-        self._output_label = QLabel("Not set")
-        self._output_label.setStyleSheet("color: gray;")
-        # Set fixed width for path labels to accommodate long paths
-        self._output_label.setMinimumWidth(400)
-        self._output_label.setMaximumWidth(400)
-        output_row.addWidget(self._output_label)
-
-        btnSetOutput = QPushButton("Set Output Folder")
-        btnSetOutput.setMinimumWidth(150)
-        btnSetOutput.setMaximumWidth(150)
-        btnSetOutput.clicked.connect(self._on_set_output_folder)
-        output_row.addWidget(btnSetOutput)
-        output_row.addStretch()
-
-        path_bar.addLayout(output_row)
-
-        main_layout.addLayout(path_bar)
-
+        """Set up the user interface by loading from .ui file."""
+        # Load UI from .ui file
+        ui_file_path = Path(__file__).parent / "mainwindow.ui"
+        
+        # Create QUiLoader and load the .ui file
+        loader = QUiLoader()
+        ui_file = QFile(str(ui_file_path))
+        ui_file.open(QFile.ReadOnly)
+        
+        # Load UI into this QMainWindow
+        # Note: We need to load the content, not create a new window
+        ui_widget = loader.load(ui_file, self)
+        ui_file.close()
+        
+        # Extract UI elements from the loaded widget
+        # Get references to widgets defined in the .ui file
+        self._input_label = ui_widget.findChild(QLabel, "lblInputPath")
+        self._output_label = ui_widget.findChild(QLabel, "lblOutputPath")
+        btnSetInput = ui_widget.findChild(QPushButton, "btnSetInput")
+        btnSetOutput = ui_widget.findChild(QPushButton, "btnSetOutput")
+        
+        # Get the main content widget where we'll add the splitters
+        main_content_widget = ui_widget.findChild(QWidget, "wgtMainContent")
+        
+        # Verify all required widgets were found
+        if not all([self._input_label, self._output_label, btnSetInput, btnSetOutput, main_content_widget]):
+            raise RuntimeError("Failed to find all required widgets in UI file")
+        
+        # Store button references for signal connections
+        self._btnSetInput = btnSetInput
+        self._btnSetOutput = btnSetOutput
+        
+        # Create layout for main content widget
+        content_layout = QVBoxLayout(main_content_widget)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        
         # Create main splitter (horizontal)
         main_splitter = QSplitter(Qt.Horizontal)
 
         # Left panel: Thumbnail list
         self._thumbnail_list = ThumbnailList()
-        self._thumbnail_list.imageSelected.connect(self._on_image_selected)
-        self._thumbnail_list.thumbnailsLoaded.connect(self._on_thumbnails_loaded)
         # Set minimum width to accommodate 3 thumbnails (100px each + 10px spacing + margins)
         # 3 * 100px (thumbnails) + 2 * 10px (spacing) + ~30px (margins/scrollbar) = ~350px
         self._thumbnail_list.setMinimumWidth(350)
@@ -125,7 +106,6 @@ class MainWindow(QMainWindow):
 
         # Editor panel
         self._editor_panel = EditorPanel()
-        self._editor_panel.sidecarSaved.connect(self._on_sidecar_saved)
         right_splitter.addWidget(self._editor_panel)
 
         # Set initial sizes for right splitter
@@ -138,52 +118,39 @@ class MainWindow(QMainWindow):
         # Right panel (preview/editor): remaining space
         main_splitter.setSizes([350, 850])
 
-        main_layout.addWidget(main_splitter)
-
-        # Status bar
+        content_layout.addWidget(main_splitter)
+        
+        # Set the loaded widget as central widget
+        self.setCentralWidget(ui_widget)
+        
+        # Get menu actions from the UI file
+        self._action_set_input = ui_widget.findChild(object, "actionSetInputFolder")
+        self._action_set_output = ui_widget.findChild(object, "actionSetOutputFolder")
+        self._action_refresh = ui_widget.findChild(object, "actionRefresh")
+        self._action_exit = ui_widget.findChild(object, "actionExit")
+        self._action_about = ui_widget.findChild(object, "actionAbout")
+        
+        # Status bar is already created in the .ui file
         self.statusBar().showMessage("Ready")
 
-        # Set initial window size
-        self.resize(1200, 800)
+    def _connect_signals(self):
 
-    def _create_menu_bar(self):
-
-        """Create the menu bar."""
-        menubar = self.menuBar()
-
-        # File menu
-        file_menu = menubar.addMenu("&File")
-
-        action_set_input = QAction("Set &Input Folder...", self)
-        action_set_input.setShortcut("Ctrl+I")
-        action_set_input.triggered.connect(self._on_set_input_folder)
-        file_menu.addAction(action_set_input)
-
-        action_set_output = QAction("Set &Output Folder...", self)
-        action_set_output.setShortcut("Ctrl+O")
-        action_set_output.triggered.connect(self._on_set_output_folder)
-        file_menu.addAction(action_set_output)
-
-        file_menu.addSeparator()
-
-        action_refresh = QAction("&Refresh", self)
-        action_refresh.setShortcut("F5")
-        action_refresh.triggered.connect(self._on_refresh)
-        file_menu.addAction(action_refresh)
-
-        file_menu.addSeparator()
-
-        action_exit = QAction("E&xit", self)
-        action_exit.setShortcut("Ctrl+Q")
-        action_exit.triggered.connect(self.close)
-        file_menu.addAction(action_exit)
-
-        # Help menu
-        help_menu = menubar.addMenu("&Help")
-
-        action_about = QAction("&About", self)
-        action_about.triggered.connect(self._on_about)
-        help_menu.addAction(action_about)
+        """Connect UI signals to slots."""
+        # Connect button signals
+        self._btnSetInput.clicked.connect(self._on_set_input_folder)
+        self._btnSetOutput.clicked.connect(self._on_set_output_folder)
+        
+        # Connect menu actions
+        self._action_set_input.triggered.connect(self._on_set_input_folder)
+        self._action_set_output.triggered.connect(self._on_set_output_folder)
+        self._action_refresh.triggered.connect(self._on_refresh)
+        self._action_exit.triggered.connect(self.close)
+        self._action_about.triggered.connect(self._on_about)
+        
+        # Connect widget signals
+        self._thumbnail_list.imageSelected.connect(self._on_image_selected)
+        self._thumbnail_list.thumbnailsLoaded.connect(self._on_thumbnails_loaded)
+        self._editor_panel.sidecarSaved.connect(self._on_sidecar_saved)
 
     def _restore_state(self):
 
