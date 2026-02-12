@@ -65,6 +65,9 @@ class MainWindow(QMainWindow):
         ui_widget = loader.load(ui_file, self)
         ui_file.close()
         
+        # Copy window properties from loaded widget to this MainWindow
+        self.setWindowTitle(ui_widget.windowTitle())
+        
         # Extract UI elements from the loaded widget
         # Get references to widgets defined in the .ui file
         self._input_label = ui_widget.findChild(QLabel, "lblInputPath")
