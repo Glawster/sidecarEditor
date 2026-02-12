@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QPushButton,
 )
 from PySide6.QtCore import Qt, QTimer, QFile
+from PySide6.QtGui import QAction
 from PySide6.QtUiTools import QUiLoader
 from typing import Optional
 
@@ -54,42 +55,43 @@ class MainWindow(QMainWindow):
         """Set up the user interface by loading from .ui file."""
         # Load UI from .ui file
         ui_file_path = Path(__file__).parent / "mainwindow.ui"
-        
+
         # Create QUiLoader and load the .ui file
         loader = QUiLoader()
         ui_file = QFile(str(ui_file_path))
-        ui_file.open(QFile.ReadOnly)
-        
+        if not ui_file.open(QFile.ReadOnly):
+            raise RuntimeError(f"Failed to open UI file: {ui_file_path}")
+
         # Load UI into this QMainWindow
         # Note: We need to load the content, not create a new window
         ui_widget = loader.load(ui_file, self)
         ui_file.close()
-        
+
         # Copy window properties from loaded widget to this MainWindow
         self.setWindowTitle(ui_widget.windowTitle())
-        
+
         # Extract UI elements from the loaded widget
         # Get references to widgets defined in the .ui file
         self._input_label = ui_widget.findChild(QLabel, "lblInputPath")
         self._output_label = ui_widget.findChild(QLabel, "lblOutputPath")
         btnSetInput = ui_widget.findChild(QPushButton, "btnSetInput")
         btnSetOutput = ui_widget.findChild(QPushButton, "btnSetOutput")
-        
+
         # Get the main content widget where we'll add the splitters
         main_content_widget = ui_widget.findChild(QWidget, "wgtMainContent")
-        
+
         # Verify all required widgets were found
         if not all([self._input_label, self._output_label, btnSetInput, btnSetOutput, main_content_widget]):
             raise RuntimeError("Failed to find all required widgets in UI file")
-        
+
         # Store button references for signal connections
         self._btnSetInput = btnSetInput
         self._btnSetOutput = btnSetOutput
-        
+
         # Create layout for main content widget
         content_layout = QVBoxLayout(main_content_widget)
         content_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Create main splitter (horizontal)
         main_splitter = QSplitter(Qt.Horizontal)
 
@@ -122,17 +124,17 @@ class MainWindow(QMainWindow):
         main_splitter.setSizes([350, 850])
 
         content_layout.addWidget(main_splitter)
-        
+
         # Set the loaded widget as central widget
         self.setCentralWidget(ui_widget)
-        
+
         # Get menu actions from the UI file
-        self._action_set_input = ui_widget.findChild(object, "actionSetInputFolder")
-        self._action_set_output = ui_widget.findChild(object, "actionSetOutputFolder")
-        self._action_refresh = ui_widget.findChild(object, "actionRefresh")
-        self._action_exit = ui_widget.findChild(object, "actionExit")
-        self._action_about = ui_widget.findChild(object, "actionAbout")
-        
+        self._action_set_input = ui_widget.findChild(QAction, "actionSetInputFolder")
+        self._action_set_output = ui_widget.findChild(QAction, "actionSetOutputFolder")
+        self._action_refresh = ui_widget.findChild(QAction, "actionRefresh")
+        self._action_exit = ui_widget.findChild(QAction, "actionExit")
+        self._action_about = ui_widget.findChild(QAction, "actionAbout")
+
         # Status bar is already created in the .ui file
         self.statusBar().showMessage("Ready")
 
