@@ -14,123 +14,123 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal
 from typing import Optional
-from ...src.sidecarCore import SidecarData, save_sidecar
+from ...src.sidecarCore import SidecarData, saveSidecar
 
 
 class EditorPanel(QWidget):
     """Widget for editing sidecar prompt data."""
 
     # Signal emitted when sidecar is saved
-    sidecarSaved = Signal(str)  # image_path
+    sidecarSaved = Signal(str)  # imagePath
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._current_sidecar: Optional[SidecarData] = None
-        self._setup_ui()
+        self._currentSidecar: Optional[SidecarData] = None
+        self._setupUi()
 
-    def _setup_ui(self):
+    def _setupUi(self):
         """Set up the user interface."""
         layout = QVBoxLayout(self)
 
         # Prompt section
-        prompt_group = QGroupBox("Prompt")
-        prompt_layout = QVBoxLayout(prompt_group)
+        promptGroup = QGroupBox("Prompt")
+        promptLayout = QVBoxLayout(promptGroup)
 
-        self._prompt_edit = QTextEdit()
-        self._prompt_edit.setPlaceholderText("Enter the image generation prompt...")
-        self._prompt_edit.setMinimumHeight(150)
-        prompt_layout.addWidget(self._prompt_edit)
+        self._promptEdit = QTextEdit()
+        self._promptEdit.setPlaceholderText("Enter the image generation prompt...")
+        self._promptEdit.setMinimumHeight(150)
+        promptLayout.addWidget(self._promptEdit)
 
-        layout.addWidget(prompt_group)
+        layout.addWidget(promptGroup)
 
         # Negative prompt section
-        neg_prompt_group = QGroupBox("Negative Prompt")
-        neg_prompt_layout = QVBoxLayout(neg_prompt_group)
+        negPromptGroup = QGroupBox("Negative Prompt")
+        negPromptLayout = QVBoxLayout(negPromptGroup)
 
-        self._neg_prompt_edit = QTextEdit()
-        self._neg_prompt_edit.setPlaceholderText("Enter negative prompt (optional)...")
-        self._neg_prompt_edit.setMinimumHeight(100)
-        neg_prompt_layout.addWidget(self._neg_prompt_edit)
+        self._negPromptEdit = QTextEdit()
+        self._negPromptEdit.setPlaceholderText("Enter negative prompt (optional)...")
+        self._negPromptEdit.setMinimumHeight(100)
+        negPromptLayout.addWidget(self._negPromptEdit)
 
-        layout.addWidget(neg_prompt_group)
+        layout.addWidget(negPromptGroup)
 
         # Tags section (future enhancement - for now, just a label)
         # TODO: Add proper tag editing widget
-        tags_label = QLabel("Tags: (Tag editing will be added in future version)")
-        tags_label.setStyleSheet("color: gray; font-style: italic;")
-        layout.addWidget(tags_label)
+        tagsLabel = QLabel("Tags: (Tag editing will be added in future version)")
+        tagsLabel.setStyleSheet("color: gray; font-style: italic;")
+        layout.addWidget(tagsLabel)
 
         layout.addStretch()
 
         # Button bar
-        button_bar = QHBoxLayout()
-        button_bar.addStretch()
+        buttonBar = QHBoxLayout()
+        buttonBar.addStretch()
 
-        self._save_button = QPushButton("Save Sidecar")
-        self._save_button.clicked.connect(self._on_save)
-        self._save_button.setEnabled(False)
-        button_bar.addWidget(self._save_button)
+        self._saveButton = QPushButton("Save Sidecar")
+        self._saveButton.clicked.connect(self._onSave)
+        self._saveButton.setEnabled(False)
+        buttonBar.addWidget(self._saveButton)
 
-        self._revert_button = QPushButton("Revert Changes")
-        self._revert_button.clicked.connect(self._on_revert)
-        self._revert_button.setEnabled(False)
-        button_bar.addWidget(self._revert_button)
+        self._revertButton = QPushButton("Revert Changes")
+        self._revertButton.clicked.connect(self._onRevert)
+        self._revertButton.setEnabled(False)
+        buttonBar.addWidget(self._revertButton)
 
-        layout.addLayout(button_bar)
+        layout.addLayout(buttonBar)
 
         # Connect change signals
-        self._prompt_edit.textChanged.connect(self._on_content_changed)
-        self._neg_prompt_edit.textChanged.connect(self._on_content_changed)
+        self._promptEdit.textChanged.connect(self._onContentChanged)
+        self._negPromptEdit.textChanged.connect(self._onContentChanged)
 
-    def load_sidecar(self, sidecar: SidecarData):
+    def loadSidecar(self, sidecar: SidecarData):
         """
         Load sidecar data into the editor.
 
         Args:
             sidecar: SidecarData to edit
         """
-        self._current_sidecar = sidecar
+        self._currentSidecar = sidecar
 
         # Block signals while loading to avoid triggering change detection
-        self._prompt_edit.blockSignals(True)
-        self._neg_prompt_edit.blockSignals(True)
+        self._promptEdit.blockSignals(True)
+        self._negPromptEdit.blockSignals(True)
 
-        self._prompt_edit.setPlainText(sidecar.prompt)
-        self._neg_prompt_edit.setPlainText(sidecar.negative_prompt)
+        self._promptEdit.setPlainText(sidecar.prompt)
+        self._negPromptEdit.setPlainText(sidecar.negativePrompt)
 
-        self._prompt_edit.blockSignals(False)
-        self._neg_prompt_edit.blockSignals(False)
+        self._promptEdit.blockSignals(False)
+        self._negPromptEdit.blockSignals(False)
 
-        self._save_button.setEnabled(True)
-        self._revert_button.setEnabled(False)
+        self._saveButton.setEnabled(True)
+        self._revertButton.setEnabled(False)
 
     def clear(self):
         """Clear the editor."""
-        self._current_sidecar = None
-        self._prompt_edit.clear()
-        self._neg_prompt_edit.clear()
-        self._save_button.setEnabled(False)
-        self._revert_button.setEnabled(False)
+        self._currentSidecar = None
+        self._promptEdit.clear()
+        self._negPromptEdit.clear()
+        self._saveButton.setEnabled(False)
+        self._revertButton.setEnabled(False)
 
-    def _on_content_changed(self):
+    def _onContentChanged(self):
         """Handle content changes."""
-        if self._current_sidecar:
-            self._revert_button.setEnabled(True)
+        if self._currentSidecar:
+            self._revertButton.setEnabled(True)
 
-    def _on_save(self):
+    def _onSave(self):
         """Handle save button click."""
-        if not self._current_sidecar:
+        if not self._currentSidecar:
             return
 
         # Update sidecar with current values
-        self._current_sidecar.prompt = self._prompt_edit.toPlainText()
-        self._current_sidecar.negative_prompt = self._neg_prompt_edit.toPlainText()
+        self._currentSidecar.prompt = self._promptEdit.toPlainText()
+        self._currentSidecar.negativePrompt = self._negPromptEdit.toPlainText()
 
         try:
-            save_sidecar(self._current_sidecar, create_backup=True)
-            self._revert_button.setEnabled(False)
-            self.sidecarSaved.emit(self._current_sidecar.image_path)
+            saveSidecar(self._currentSidecar, createBackup=True)
+            self._revertButton.setEnabled(False)
+            self.sidecarSaved.emit(self._currentSidecar.imagePath)
 
             # Show success message
             QMessageBox.information(
@@ -143,9 +143,9 @@ class EditorPanel(QWidget):
                 self, "Save Error", f"Failed to save sidecar:\n{str(e)}"
             )
 
-    def _on_revert(self):
+    def _onRevert(self):
         """Handle revert button click."""
-        if not self._current_sidecar:
+        if not self._currentSidecar:
             return
 
         reply = QMessageBox.question(
@@ -158,13 +158,13 @@ class EditorPanel(QWidget):
 
         if reply == QMessageBox.Yes:
             # Reload the original data
-            self.load_sidecar(self._current_sidecar)
+            self.loadSidecar(self._currentSidecar)
 
-    def has_unsaved_changes(self) -> bool:
+    def hasUnsavedChanges(self) -> bool:
         """
         Check if there are unsaved changes.
 
         Returns:
             True if there are unsaved changes
         """
-        return self._revert_button.isEnabled()
+        return self._revertButton.isEnabled()
