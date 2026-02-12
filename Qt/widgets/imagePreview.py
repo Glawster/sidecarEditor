@@ -2,7 +2,14 @@
 Image preview widget with original/output toggle.
 """
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy
+from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+)
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from typing import Optional
@@ -10,133 +17,135 @@ from typing import Optional
 
 class ImagePreview(QWidget):
     """Widget for displaying image preview with original/output toggle."""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        
-        self._original_path: Optional[str] = None
-        self._output_path: Optional[str] = None
-        self._showing_original = True
-        
-        self._setup_ui()
-    
-    def _setup_ui(self):
+
+        self._originalPath: Optional[str] = None
+        self._outputPath: Optional[str] = None
+        self._showingOriginal = True
+
+        self._setupUi()
+
+    def _setupUi(self):
         """Set up the user interface."""
         layout = QVBoxLayout(self)
-        
+
         # Control bar
-        control_bar = QHBoxLayout()
-        
-        self._status_label = QLabel("No image selected")
-        control_bar.addWidget(self._status_label)
-        
-        control_bar.addStretch()
-        
-        self._toggle_button = QPushButton("Show Output")
-        self._toggle_button.clicked.connect(self._on_toggle)
-        self._toggle_button.setEnabled(False)
-        control_bar.addWidget(self._toggle_button)
-        
-        layout.addLayout(control_bar)
-        
+        controlBar = QHBoxLayout()
+
+        self._statusLabel = QLabel("No image selected")
+        controlBar.addWidget(self._statusLabel)
+
+        controlBar.addStretch()
+
+        self._toggleButton = QPushButton("Show Output")
+        self._toggleButton.clicked.connect(self._onToggle)
+        self._toggleButton.setEnabled(False)
+        controlBar.addWidget(self._toggleButton)
+
+        layout.addLayout(controlBar)
+
         # Image display
-        self._image_label = QLabel()
-        self._image_label.setAlignment(Qt.AlignCenter)
-        self._image_label.setMinimumSize(400, 400)
-        self._image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self._image_label.setScaledContents(False)
-        self._image_label.setStyleSheet("QLabel { background-color: #2b2b2b; }")
-        layout.addWidget(self._image_label)
-    
-    def set_images(self, original_path: str, output_path: Optional[str] = None):
+        self._imageLabel = QLabel()
+        self._imageLabel.setAlignment(Qt.AlignCenter)
+        self._imageLabel.setMinimumSize(400, 400)
+        self._imageLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self._imageLabel.setScaledContents(False)
+        self._imageLabel.setStyleSheet("QLabel { background-color: #2b2b2b; }")
+        layout.addWidget(self._imageLabel)
+
+    def setImages(self, originalPath: str, outputPath: Optional[str] = None):
         """
         Set the images to display.
-        
+
         Args:
-            original_path: Path to original image
-            output_path: Path to output image (optional)
+            originalPath: Path to original image
+            outputPath: Path to output image (optional)
         """
-        self._original_path = original_path
-        self._output_path = output_path
-        self._showing_original = True
-        
+        self._originalPath = originalPath
+        self._outputPath = outputPath
+        self._showingOriginal = True
+
         # Update toggle button state
-        if output_path:
-            self._toggle_button.setEnabled(True)
-            self._toggle_button.setText("Show Output")
+        if outputPath:
+            self._toggleButton.setEnabled(True)
+            self._toggleButton.setText("Show Output")
         else:
-            self._toggle_button.setEnabled(False)
-            self._toggle_button.setText("Show Output (Not Available)")
-        
+            self._toggleButton.setEnabled(False)
+            self._toggleButton.setText("Show Output (Not Available)")
+
         # Display the original image
-        self._display_image(original_path)
-        self._update_status()
-    
-    def _display_image(self, image_path: str):
+        self._displayImage(originalPath)
+        self._updateStatus()
+
+    def _displayImage(self, imagePath: str):
         """
         Display an image.
-        
+
         Args:
-            image_path: Path to the image file
+            imagePath: Path to the image file
         """
-        pixmap = QPixmap(image_path)
-        
+        pixmap = QPixmap(imagePath)
+
         if pixmap.isNull():
-            self._image_label.setText(f"Could not load image:\n{image_path}")
+            self._imageLabel.setText(f"Could not load image:\n{imagePath}")
             return
-        
+
         # Scale to fit widget while maintaining aspect ratio
-        scaled_pixmap = pixmap.scaled(
-            self._image_label.size(),
-            Qt.KeepAspectRatio,
-            Qt.SmoothTransformation
+        scaledPixmap = pixmap.scaled(
+            self._imageLabel.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
         )
-        
-        self._image_label.setPixmap(scaled_pixmap)
-    
-    def _on_toggle(self):
+
+        self._imageLabel.setPixmap(scaledPixmap)
+
+    def _onToggle(self):
         """Handle toggle button click."""
-        if not self._output_path:
+        if not self._outputPath:
             return
-        
-        self._showing_original = not self._showing_original
-        
-        if self._showing_original:
-            self._display_image(self._original_path)
-            self._toggle_button.setText("Show Output")
+
+        self._showingOriginal = not self._showingOriginal
+
+        if self._showingOriginal:
+            self._displayImage(self._originalPath)
+            self._toggleButton.setText("Show Output")
         else:
-            self._display_image(self._output_path)
-            self._toggle_button.setText("Show Original")
-        
-        self._update_status()
-    
-    def _update_status(self):
+            self._displayImage(self._outputPath)
+            self._toggleButton.setText("Show Original")
+
+        self._updateStatus()
+
+    def _updateStatus(self):
         """Update the status label."""
         import os
-        
-        if self._showing_original:
-            status = f"Original: {os.path.basename(self._original_path)}"
+
+        if self._showingOriginal:
+            status = f"Original: {os.path.basename(self._originalPath)}"
         else:
-            status = f"Output: {os.path.basename(self._output_path)}"
-        
-        self._status_label.setText(status)
-    
+            status = f"Output: {os.path.basename(self._outputPath)}"
+
+        self._statusLabel.setText(status)
+
     def clear(self):
         """Clear the displayed image."""
-        self._original_path = None
-        self._output_path = None
-        self._showing_original = True
-        self._image_label.clear()
-        self._image_label.setText("No image selected")
-        self._status_label.setText("No image selected")
-        self._toggle_button.setEnabled(False)
-        self._toggle_button.setText("Show Output")
-    
+        self._originalPath = None
+        self._outputPath = None
+        self._showingOriginal = True
+        self._imageLabel.clear()
+        self._imageLabel.setText("No image selected")
+        self._statusLabel.setText("No image selected")
+        self._toggleButton.setEnabled(False)
+        self._toggleButton.setText("Show Output")
+
     def resizeEvent(self, event):
         """Handle resize events to re-scale the image."""
         super().resizeEvent(event)
-        
+
         # Re-display current image at new size
-        if self._original_path:
-            current_path = self._output_path if not self._showing_original and self._output_path else self._original_path
-            self._display_image(current_path)
+        if self._originalPath:
+            currentPath = (
+                self._outputPath
+                if not self._showingOriginal and self._outputPath
+                else self._originalPath
+            )
+            self._displayImage(currentPath)
