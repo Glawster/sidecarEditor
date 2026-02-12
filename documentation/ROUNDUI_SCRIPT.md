@@ -146,7 +146,7 @@ The script handles errors gracefully:
 Use the test script to verify the changes:
 
 ```bash
-python test_mainwindow_changes.py
+python testMainwindowChanges.py
 ```
 
 This will check that:
