@@ -142,7 +142,31 @@ class MainWindow(QMainWindow):
         self._actionExit = uiWidget.findChild(QAction, "actionExit")
         self._actionAbout = uiWidget.findChild(QAction, "actionAbout")
 
-        # Status bar is already created in the .ui file
+        # Recreate menu structure with the actions from the loaded window
+        menubar = self.menuBar()
+
+        # File menu
+        file_menu = menubar.addMenu("&File")
+        file_actions = [
+            self._action_set_input,
+            self._action_set_output,
+            None,  # Separator
+            self._action_refresh,
+            None,  # Separator
+            self._action_exit
+        ]
+        for action in file_actions:
+            if action is None:
+                file_menu.addSeparator()
+            elif action:
+                file_menu.addAction(action)
+
+        # Help menu
+        help_menu = menubar.addMenu("&Help")
+        if self._action_about:
+            help_menu.addAction(self._action_about)
+
+        # Status bar
         self.statusBar().showMessage("Ready")
 
     def _connectSignals(self):
