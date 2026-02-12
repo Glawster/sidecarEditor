@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         # Create QUiLoader and load the .ui file
         loader = QUiLoader()
         uiFile = QFile(str(uiFilePath))
-        if not uiFile.open(QFile.ReadOnly):
+        if not uiFile.open(QFile.readOnly):
             raise RuntimeError(f"Failed to open UI file: {uiFilePath}")
 
         # Load UI into this QMainWindow

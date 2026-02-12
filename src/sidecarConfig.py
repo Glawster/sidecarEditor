@@ -64,24 +64,38 @@ def _saveSidecarSection(section: Dict[str, Any]):
     config[sidecarEditorKey] = section
     _saveConfig(config)
 
-
 def getInputRoot() -> Optional[str]:
-    """
-    Get the last-used input root directory.
-    First checks sidecarEditor section, then falls back to train_data_dir from kohya config.
+    config = _loadConfig()
 
-    Returns:
-        Input root path or None if not set
-    """
-    section = _getSidecarSection()
-    inputRoot = section.get("inputRoot")
+    # 1️⃣ Preferred: sidecarEditor section
+    sidecar = config.get("sidecarEditor", {})
+    inputRoot = sidecar.get("inputRoot")
+    if inputRoot:
+        return inputRoot
 
-    # If not set in sidecarEditor section, try to get from kohya config
-    if not inputRoot:
-        config = _loadConfig()
-        inputRoot = config.get("train_data_dir")
+    # 2️⃣ Fallback: global comfyInput
+    inputRoot = config.get("comfyInput")
+    if inputRoot:
+        return inputRoot
 
-    return inputRoot
+    return None
+
+
+def getOutputRoot() -> Optional[str]:
+    config = _loadConfig()
+
+    # 1️⃣ Preferred: sidecarEditor section
+    sidecar = config.get("sidecarEditor", {})
+    outputRoot = sidecar.get("outputRoot")
+    if outputRoot:
+        return outputRoot
+
+    # 2️⃣ Fallback: global comfyOutput
+    outputRoot = config.get("comfyOutput")
+    if outputRoot:
+        return outputRoot
+
+    return None
 
 def setInputRoot(path: str):
     """
@@ -93,25 +107,6 @@ def setInputRoot(path: str):
     section = _getSidecarSection()
     section["inputRoot"] = path
     _saveSidecarSection(section)
-
-
-def getOutputRoot() -> Optional[str]:
-    """
-    Get the last-used output root directory.
-    First checks sidecarEditor section, then falls back to output_dir from kohya config.
-
-    Returns:
-        Output root path or None if not set
-    """
-    section = _getSidecarSection()
-    outputRoot = section.get("outputRoot")
-
-    # If not set in sidecarEditor section, try to get from kohya config
-    if not outputRoot:
-        config = _loadConfig()
-        outputRoot = config.get("output_dir")
-
-    return outputRoot
 
 
 def setOutputRoot(path: str):
