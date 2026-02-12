@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
     QSplitter,
     QFileDialog,
     QMessageBox,
@@ -18,12 +17,12 @@ from PySide6.QtWidgets import (
     QPushButton,
 )
 from PySide6.QtCore import Qt, QTimer, QFile
-from PySide6.QtUiTools import QUiLoader
 from PySide6.QtGui import QAction
+from PySide6.QtUiTools import QUiLoader
 from typing import Optional
 
 from ...src import sidecarConfig
-from ...src.sidecarCore import scan_images, load_sidecar
+from ...src.sidecarCore import scanImages, loadSidecar
 from ...src.outputResolver import OutputResolver
 
 from .thumbnailList import ThumbnailList
@@ -35,184 +34,196 @@ class MainWindow(QMainWindow):
     """Main window for the Sidecar Editor application."""
 
     def __init__(self):
+
         super().__init__()
 
-        self.setWindowTitle("Sidecar Editor")
-
         # Initialize components
-        self._output_resolver = OutputResolver()
-        self._current_images = []
-        self._input_root: Optional[str] = None
-        self._output_root: Optional[str] = None
+        self._outputResolver = OutputResolver()
+        self._currentImages = []
+        self._inputRoot: Optional[str] = None
+        self._outputRoot: Optional[str] = None
 
-        self._setup_ui()
-        self._create_menu_bar()
-        self._restore_state()
+        self._setupUi()
+        self._connectSignals()
+        self._restoreState()
 
         # Show welcome message after window is shown
-        QTimer.singleShot(100, self._show_welcome)
+        QTimer.singleShot(100, self._showWelcome)
 
-    def _setup_ui(self):
-        """Set up the user interface."""
-        # Create central widget with main layout
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout(central_widget)
+    def _setupUi(self):
+        """Set up the user interface by loading from .ui file."""
+        # Load UI from .ui file
+        uiFilePath = Path(__file__).parent / "mainwindow.ui"
 
-        # Path display bar - input and output stacked vertically
-        path_bar = QVBoxLayout()
+        # Create QUiLoader and load the .ui file
+        loader = QUiLoader()
+        uiFile = QFile(str(uiFilePath))
+        if not uiFile.open(QFile.ReadOnly):
+            raise RuntimeError(f"Failed to open UI file: {uiFilePath}")
 
-        # Input row
-        input_row = QHBoxLayout()
-        input_row.addWidget(QLabel("Input:"))
-        self._input_label = QLabel("Not set")
-        self._input_label.setStyleSheet("color: gray;")
-        # Set fixed width for path labels to accommodate long paths
-        self._input_label.setMinimumWidth(400)
-        self._input_label.setMaximumWidth(400)
-        input_row.addWidget(self._input_label)
+        # Load the UI - this creates a QMainWindow with all its properties
+        # Keep a reference to prevent garbage collection of actions
+        self._loadedWindow = loader.load(uiFile, None)
+        uiFile.close()
 
-        btnSetInput = QPushButton("Set Input Folder")
-        btnSetInput.setMinimumWidth(150)
-        btnSetInput.setMaximumWidth(150)
-        btnSetInput.clicked.connect(self._on_set_input_folder)
-        input_row.addWidget(btnSetInput)
-        input_row.addStretch()
+        # Copy window properties from loaded window
+        self.setWindowTitle(self._loadedWindow.windowTitle())
+        self.setGeometry(self._loadedWindow.geometry())
 
-        path_bar.addLayout(input_row)
+        # Extract the central widget from the loaded window
+        loadedCentral = self._loadedWindow.centralWidget()
+        if not loadedCentral:
+            raise RuntimeError("Loaded UI has no central widget")
 
-        # Output row
-        output_row = QHBoxLayout()
-        output_row.addWidget(QLabel("Output:"))
-        self._output_label = QLabel("Not set")
-        self._output_label.setStyleSheet("color: gray;")
-        # Set fixed width for path labels to accommodate long paths
-        self._output_label.setMinimumWidth(400)
-        self._output_label.setMaximumWidth(400)
-        output_row.addWidget(self._output_label)
+        # Extract UI elements from the loaded central widget
+        self._inputLabel = loadedCentral.findChild(QLabel, "lblInputPath")
+        self._outputLabel = loadedCentral.findChild(QLabel, "lblOutputPath")
+        btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")
+        btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")
 
-        btnSetOutput = QPushButton("Set Output Folder")
-        btnSetOutput.setMinimumWidth(150)
-        btnSetOutput.setMaximumWidth(150)
-        btnSetOutput.clicked.connect(self._on_set_output_folder)
-        output_row.addWidget(btnSetOutput)
-        output_row.addStretch()
+        # Get the main content widget where we'll add the splitters
+        mainContentWidget = loadedCentral.findChild(QWidget, "wgtMainContent")
 
-        path_bar.addLayout(output_row)
+        # Verify all required widgets were found
+        if not all(
+            [
+                self._inputLabel,
+                self._outputLabel,
+                btnSetInput,
+                btnSetOutput,
+                mainContentWidget,
+            ]
+        ):
+            raise RuntimeError("Failed to find all required widgets in UI file")
 
-        main_layout.addLayout(path_bar)
+        # Store button references for signal connections
+        self._btnSetInput = btnSetInput
+        self._btnSetOutput = btnSetOutput
+
+        # Create layout for main content widget
+        contentLayout = QVBoxLayout(mainContentWidget)
+        contentLayout.setContentsMargins(0, 0, 0, 0)
 
         # Create main splitter (horizontal)
-        main_splitter = QSplitter(Qt.Horizontal)
+        mainSplitter = QSplitter(Qt.Horizontal)
 
         # Left panel: Thumbnail list
-        self._thumbnail_list = ThumbnailList()
-        self._thumbnail_list.imageSelected.connect(self._on_image_selected)
+        self._thumbnailList = ThumbnailList()
         # Set minimum width to accommodate 3 thumbnails (100px each + 10px spacing + margins)
         # 3 * 100px (thumbnails) + 2 * 10px (spacing) + ~30px (margins/scrollbar) = ~350px
-        self._thumbnail_list.setMinimumWidth(350)
-        main_splitter.addWidget(self._thumbnail_list)
+        self._thumbnailList.setMinimumWidth(350)
+        mainSplitter.addWidget(self._thumbnailList)
 
         # Right panel: Splitter with preview and editor
-        right_splitter = QSplitter(Qt.Vertical)
+        rightSplitter = QSplitter(Qt.Vertical)
 
         # Image preview
-        self._image_preview = ImagePreview()
-        right_splitter.addWidget(self._image_preview)
+        self._imagePreview = ImagePreview()
+        rightSplitter.addWidget(self._imagePreview)
 
         # Editor panel
-        self._editor_panel = EditorPanel()
-        self._editor_panel.sidecarSaved.connect(self._on_sidecar_saved)
-        right_splitter.addWidget(self._editor_panel)
+        self._editorPanel = EditorPanel()
+        rightSplitter.addWidget(self._editorPanel)
 
         # Set initial sizes for right splitter
-        right_splitter.setSizes([400, 300])
+        rightSplitter.setSizes([400, 300])
 
-        main_splitter.addWidget(right_splitter)
+        mainSplitter.addWidget(rightSplitter)
 
         # Set initial sizes for main splitter
         # Left panel (thumbnails): 350px to fit 3 thumbnails wide
         # Right panel (preview/editor): remaining space
-        main_splitter.setSizes([350, 850])
+        mainSplitter.setSizes([350, 850])
 
-        main_layout.addWidget(main_splitter)
+        contentLayout.addWidget(mainSplitter)
+
+        # Set the loaded central widget as our central widget
+        self.setCentralWidget(loadedCentral)
+
+        # Get menu actions from the loaded window
+        self._actionSetInput = self._loadedWindow.findChild(QAction, "actionSetInputFolder")
+        self._actionSetOutput = self._loadedWindow.findChild(QAction, "actionSetOutputFolder")
+        self._actionRefresh = self._loadedWindow.findChild(QAction, "actionRefresh")
+        self._actionExit = self._loadedWindow.findChild(QAction, "actionExit")
+        self._actionAbout = self._loadedWindow.findChild(QAction, "actionAbout")
+
+        # Recreate menu structure with the actions from the loaded window
+        menubar = self.menuBar()
+
+        # File menu
+        fileMenu = menubar.addMenu("&File")
+        fileActions = [
+            self._actionSetInput,
+            self._actionSetOutput,
+            None,  # Separator
+            self._actionRefresh,
+            None,  # Separator
+            self._actionExit
+        ]
+        for action in fileActions:
+            if action is None:
+                fileMenu.addSeparator()
+            elif action:
+                fileMenu.addAction(action)
+
+        # Help menu
+        helpMenu = menubar.addMenu("&Help")
+        if self._actionAbout:
+            helpMenu.addAction(self._actionAbout)
 
         # Status bar
         self.statusBar().showMessage("Ready")
 
-        # Set initial window size
-        self.resize(1200, 800)
+    def _connectSignals(self):
+        """Connect UI signals to slots."""
+        # Connect button signals
+        self._btnSetInput.clicked.connect(self._onSetInputFolder)
+        self._btnSetOutput.clicked.connect(self._onSetOutputFolder)
 
-    def _create_menu_bar(self):
-        """Create the menu bar."""
-        menubar = self.menuBar()
+        # Connect menu actions
+        self._actionSetInput.triggered.connect(self._onSetInputFolder)
+        self._actionSetOutput.triggered.connect(self._onSetOutputFolder)
+        self._actionRefresh.triggered.connect(self._onRefresh)
+        self._actionExit.triggered.connect(self.close)
+        self._actionAbout.triggered.connect(self._onAbout)
 
-        # File menu
-        file_menu = menubar.addMenu("&File")
+        # Connect widget signals
+        self._thumbnailList.imageSelected.connect(self._onImageSelected)
+        self._thumbnailList.thumbnailsLoaded.connect(self._onThumbnailsLoaded)
+        self._editorPanel.sidecarSaved.connect(self._onSidecarSaved)
 
-        action_set_input = QAction("Set &Input Folder...", self)
-        action_set_input.setShortcut("Ctrl+I")
-        action_set_input.triggered.connect(self._on_set_input_folder)
-        file_menu.addAction(action_set_input)
-
-        action_set_output = QAction("Set &Output Folder...", self)
-        action_set_output.setShortcut("Ctrl+O")
-        action_set_output.triggered.connect(self._on_set_output_folder)
-        file_menu.addAction(action_set_output)
-
-        file_menu.addSeparator()
-
-        action_refresh = QAction("&Refresh", self)
-        action_refresh.setShortcut("F5")
-        action_refresh.triggered.connect(self._on_refresh)
-        file_menu.addAction(action_refresh)
-
-        file_menu.addSeparator()
-
-        action_exit = QAction("E&xit", self)
-        action_exit.setShortcut("Ctrl+Q")
-        action_exit.triggered.connect(self.close)
-        file_menu.addAction(action_exit)
-
-        # Help menu
-        help_menu = menubar.addMenu("&Help")
-
-        action_about = QAction("&About", self)
-        action_about.triggered.connect(self._on_about)
-        help_menu.addAction(action_about)
-
-    def _restore_state(self):
+    def _restoreState(self):
         """Restore window state and paths from config."""
         # Restore window geometry
-        geometry = sidecarConfig.get_window_geometry()
+        geometry = sidecarConfig.getWindowGeometry()
         if geometry:
             self.setGeometry(
                 geometry["x"], geometry["y"], geometry["width"], geometry["height"]
             )
 
         # Restore input/output paths
-        input_root = sidecarConfig.get_input_root()
-        if input_root:
-            self._set_input_root(input_root)
+        inputRoot = sidecarConfig.getInputRoot()
+        if inputRoot:
+            self._setInputRoot(inputRoot)
             # Defer scanning images until after window is shown
             # This prevents the app from appearing frozen on startup
-            QTimer.singleShot(100, self._scan_images)
+            QTimer.singleShot(100, self._scanImages)
 
-        output_root = sidecarConfig.get_output_root()
-        if output_root:
-            self._set_output_root(output_root)
+        outputRoot = sidecarConfig.getOutputRoot()
+        if outputRoot:
+            self._setOutputRoot(outputRoot)
 
-    def _save_state(self):
+    def _saveState(self):
         """Save window state and paths to config."""
         # Save window geometry
         geometry = self.geometry()
-        sidecarConfig.set_window_geometry(
+        sidecarConfig.setWindowGeometry(
             geometry.x(), geometry.y(), geometry.width(), geometry.height()
         )
 
-    def _show_welcome(self):
+    def _showWelcome(self):
         """Show welcome message on first run or when no folders are set."""
-        if not self._input_root:
+        if not self._inputRoot:
             self.statusBar().showMessage(
                 "Welcome! Please set an input folder to get started (File > Set Input Folder)"
             )
@@ -220,134 +231,138 @@ class MainWindow(QMainWindow):
             # If we have an input root, show loading message since thumbnails will be loading
             self.statusBar().showMessage("Loading thumbnails...")
 
-    def _on_set_input_folder(self):
+    def _onSetInputFolder(self):
         """Handle set input folder action."""
-        initial_dir = self._input_root or ""
+        initialDir = self._inputRoot or ""
 
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Input Folder", initial_dir
+            self, "Select Input Folder", initialDir
         )
 
         if folder:
-            self._set_input_root(folder)
-            self._scan_images()
+            self._setInputRoot(folder)
+            self._scanImages()
 
-    def _on_set_output_folder(self):
+    def _onSetOutputFolder(self):
         """Handle set output folder action."""
-        initial_dir = self._output_root or ""
+        initialDir = self._outputRoot or ""
 
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Output Folder", initial_dir
+            self, "Select Output Folder", initialDir
         )
 
         if folder:
-            self._set_output_root(folder)
+            self._setOutputRoot(folder)
 
-    def _set_input_root(self, path: str):
+    def _setInputRoot(self, path: str):
         """
         Set the input root folder.
 
         Args:
             path: Input folder path
         """
-        self._input_root = path
-        self._input_label.setText(path)
-        self._input_label.setStyleSheet("")
-        sidecarConfig.set_input_root(path)
+        self._inputRoot = path
+        self._inputLabel.setText(path)
+        self._inputLabel.setStyleSheet("")
+        sidecarConfig.setInputRoot(path)
 
-    def _set_output_root(self, path: str):
+    def _setOutputRoot(self, path: str):
         """
         Set the output root folder.
 
         Args:
             path: Output folder path
         """
-        self._output_root = path
-        self._output_label.setText(path)
-        self._output_label.setStyleSheet("")
-        self._output_resolver.set_output_root(path)
-        sidecarConfig.set_output_root(path)
+        self._outputRoot = path
+        self._outputLabel.setText(path)
+        self._outputLabel.setStyleSheet("")
+        self._outputResolver.setOutputRoot(path)
+        sidecarConfig.setOutputRoot(path)
 
-    def _scan_images(self):
+    def _scanImages(self):
         """Scan the input folder for images."""
-        if not self._input_root:
+        if not self._inputRoot:
             return
 
         self.statusBar().showMessage("Scanning for images...")
 
         try:
-            images = scan_images(self._input_root)
-            self._current_images = images
+            images = scanImages(self._inputRoot)
+            self._currentImages = images
 
-            # Show loading message for thumbnails
+            # Show loading message for thumbnails BEFORE loading starts
             if images:
                 self.statusBar().showMessage(
                     f"Loading thumbnails for {len(images)} images..."
                 )
 
-            self._thumbnail_list.load_images(images, self._input_root)
-
-            self.statusBar().showMessage(f"Loaded {len(images)} images")
+            # Load images - this will emit thumbnailsLoaded signal when done
+            self._thumbnailList.loadImages(images, self._inputRoot)
 
             # Select last selected image if available
-            last_image = sidecarConfig.get_last_selected_image()
-            if last_image and last_image in images:
-                self._thumbnail_list.select_image(last_image)
+            lastImage = sidecarConfig.getLastSelectedImage()
+            if lastImage and lastImage in images:
+                self._thumbnailList.selectImage(lastImage)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to scan images:\n{str(e)}")
             self.statusBar().showMessage("Error scanning images")
 
-    def _on_refresh(self):
-        """Handle refresh action."""
-        self._scan_images()
+    def _onThumbnailsLoaded(self, imageCount: int):
+        """
+        Handle thumbnails loaded event.
 
-    def _on_image_selected(self, image_path: str):
+        Args:
+            imageCount: Number of thumbnails loaded
+        """
+        self.statusBar().showMessage(f"Loaded {imageCount} images")
+
+    def _onRefresh(self):
+        """Handle refresh action."""
+        self._scanImages()
+
+    def _onImageSelected(self, imagePath: str):
         """
         Handle image selection.
 
         Args:
-            image_path: Path to the selected image
+            imagePath: Path to the selected image
         """
         # Save selection
-        sidecarConfig.set_last_selected_image(image_path)
+        sidecarConfig.setLastSelectedImage(imagePath)
 
         # Load sidecar
         try:
-            sidecar = load_sidecar(image_path)
-            self._editor_panel.load_sidecar(sidecar)
+            sidecar = loadSidecar(imagePath)
+            self._editorPanel.loadSidecar(sidecar)
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Failed to load sidecar:\n{str(e)}")
 
         # Resolve output image
-        output_path = None
-        if self._output_root and self._input_root:
-            output_path = self._output_resolver.resolve_output(
-                image_path, self._input_root
-            )
+        outputPath = None
+        if self._outputRoot and self._inputRoot:
+            outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
 
         # Update preview
-        self._image_preview.set_images(image_path, output_path)
+        self._imagePreview.setImages(imagePath, outputPath)
 
         # Update status
-        status = f"Loaded: {os.path.basename(image_path)}"
-        if output_path:
-            status += f" (output: {os.path.basename(output_path)})"
+        status = f"Loaded: {os.path.basename(imagePath)}"
+        if outputPath:
+            status += f" (output: {os.path.basename(outputPath)})"
         else:
             status += " (no output image found)"
         self.statusBar().showMessage(status)
 
-    def _on_sidecar_saved(self, image_path: str):
+    def _onSidecarSaved(self, imagePath: str):
         """
         Handle sidecar saved event.
 
         Args:
-            image_path: Path to the image whose sidecar was saved
+            imagePath: Path to the image whose sidecar was saved
         """
-        self.statusBar().showMessage(
-            f"Saved sidecar for {os.path.basename(image_path)}"
-        )
+        self.statusBar().showMessage(f"Saved sidecar for {os.path.basename(imagePath)}")
 
-    def _on_about(self):
+    def _onAbout(self):
         """Show about dialog."""
         QMessageBox.about(
             self,
@@ -368,7 +383,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """Handle window close event."""
         # Check for unsaved changes
-        if self._editor_panel.has_unsaved_changes():
+        if self._editorPanel.hasUnsavedChanges():
             reply = QMessageBox.question(
                 self,
                 "Unsaved Changes",
@@ -382,5 +397,5 @@ class MainWindow(QMainWindow):
                 return
 
         # Save state
-        self._save_state()
+        self._saveState()
         event.accept()

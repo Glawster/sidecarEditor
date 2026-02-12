@@ -13,155 +13,155 @@ from dataclasses import dataclass, asdict
 @dataclass
 class SidecarData:
     """Represents a prompt sidecar file."""
-    
-    image_path: str
+
+    imagePath: str
     prompt: str = ""
-    negative_prompt: str = ""
-    tags: List[str] = None
-    metadata: Dict[str, Any] = None
-    
+    negativePrompt: str = ""
+    tags: Optional[List[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
+
     def __post_init__(self):
         if self.tags is None:
             self.tags = []
         if self.metadata is None:
             self.metadata = {}
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def toDict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
-            'prompt': self.prompt,
-            'negative_prompt': self.negative_prompt,
-            'tags': self.tags,
-            'metadata': self.metadata
+            "prompt": self.prompt,
+            "negative_prompt": self.negativePrompt,
+            "tags": self.tags,
+            "metadata": self.metadata,
         }
-    
+
     @classmethod
-    def from_dict(cls, image_path: str, data: Dict[str, Any]) -> 'SidecarData':
+    def fromDict(cls, imagePath: str, data: Dict[str, Any]) -> "SidecarData":
         """Create SidecarData from dictionary."""
         return cls(
-            image_path=image_path,
-            prompt=data.get('prompt', ''),
-            negative_prompt=data.get('negative_prompt', ''),
-            tags=data.get('tags', []),
-            metadata=data.get('metadata', {})
+            imagePath=imagePath,
+            prompt=data.get("prompt", ""),
+            negativePrompt=data.get("negative_prompt", ""),
+            tags=data.get("tags", []),
+            metadata=data.get("metadata", {}),
         )
 
 
-def get_sidecar_path(image_path: str) -> Path:
+def getSidecarPath(imagePath: str) -> Path:
     """
     Get the sidecar file path for an image.
-    
+
     Args:
-        image_path: Path to the image file
-        
+        imagePath: Path to the image file
+
     Returns:
         Path to the sidecar file
     """
-    img_path = Path(image_path)
-    return img_path.parent / f"{img_path.name}.prompt.json"
+    imgPath = Path(imagePath)
+    return imgPath.parent / f"{imgPath.name}.prompt.json"
 
 
-def load_sidecar(image_path: str) -> SidecarData:
+def loadSidecar(imagePath: str) -> SidecarData:
     """
     Load sidecar data for an image.
     If the sidecar doesn't exist, returns a minimal default.
-    
+
     Args:
-        image_path: Path to the image file
-        
+        imagePath: Path to the image file
+
     Returns:
         SidecarData object
     """
-    sidecar_path = get_sidecar_path(image_path)
-    
-    if sidecar_path.exists():
+    sidecarPath = getSidecarPath(imagePath)
+
+    if sidecarPath.exists():
         try:
-            with open(sidecar_path, 'r', encoding='utf-8') as f:
+            with open(sidecarPath, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return SidecarData.from_dict(image_path, data)
+            return SidecarData.fromDict(imagePath, data)
         except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Could not load sidecar {sidecar_path}: {e}")
-    
+            print(f"Warning: Could not load sidecar {sidecarPath}: {e}")
+
     # Return minimal default
-    return SidecarData(image_path=image_path)
+    return SidecarData(imagePath=imagePath)
 
 
-def save_sidecar(sidecar: SidecarData, create_backup: bool = True):
+def saveSidecar(sidecar: SidecarData, createBackup: bool = True):
     """
     Save sidecar data to disk.
-    
+
     Args:
         sidecar: SidecarData to save
-        create_backup: If True, create .bak backup before saving
+        createBackup: If True, create .bak backup before saving
     """
-    sidecar_path = get_sidecar_path(sidecar.image_path)
-    
+    sidecarPath = getSidecarPath(sidecar.imagePath)
+
     # Create backup if file exists
-    if create_backup and sidecar_path.exists():
-        backup_path = Path(str(sidecar_path) + '.bak')
+    if createBackup and sidecarPath.exists():
+        backupPath = Path(str(sidecarPath) + ".bak")
         try:
-            backup_path.write_bytes(sidecar_path.read_bytes())
+            backupPath.write_bytes(sidecarPath.read_bytes())
         except IOError as e:
-            print(f"Warning: Could not create backup {backup_path}: {e}")
-    
+            print(f"Warning: Could not create backup {backupPath}: {e}")
+
     # Save the sidecar
     try:
-        with open(sidecar_path, 'w', encoding='utf-8') as f:
-            json.dump(sidecar.to_dict(), f, indent=2, ensure_ascii=False)
+        with open(sidecarPath, "w", encoding="utf-8") as f:
+            json.dump(sidecar.toDict(), f, indent=2, ensure_ascii=False)
     except IOError as e:
-        print(f"Error: Could not save sidecar {sidecar_path}: {e}")
+        print(f"Error: Could not save sidecar {sidecarPath}: {e}")
         raise
 
 
-def scan_images(root_path: str, extensions: Optional[List[str]] = None) -> List[str]:
+def scanImages(rootPath: str, extensions: Optional[List[str]] = None) -> List[str]:
     """
     Scan a directory for image files.
-    
+
     Args:
-        root_path: Root directory to scan
+        rootPath: Root directory to scan
         extensions: List of file extensions to include (default: common image formats)
-        
+
     Returns:
         List of absolute image file paths
     """
     if extensions is None:
-        extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
-    
+        extensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
+
     extensions = [ext.lower() for ext in extensions]
-    root = Path(root_path)
-    
+    root = Path(rootPath)
+
     if not root.exists() or not root.is_dir():
         return []
-    
+
     images = []
-    for file_path in root.rglob('*'):
-        if file_path.is_file() and file_path.suffix.lower() in extensions:
+    for filePath in root.rglob("*"):
+        if filePath.is_file() and filePath.suffix.lower() in extensions:
             # Skip .prompt.json files
-            if '.prompt.json' not in file_path.name:
-                images.append(str(file_path.absolute()))
-    
+            if ".prompt.json" not in filePath.name:
+                images.append(str(filePath.absolute()))
+
     return sorted(images)
 
 
-def assemble_prompt(sidecar: SidecarData) -> str:
+def assemblePrompt(sidecar: SidecarData) -> str:
     """
     Assemble the full prompt text from sidecar data.
     Currently just returns the prompt field, but could be extended
     to include tags or other elements.
-    
+
     Args:
         sidecar: SidecarData object
-        
+
     Returns:
         Assembled prompt string
     """
     parts = []
-    
+
     if sidecar.prompt:
         parts.append(sidecar.prompt)
-    
+
     if sidecar.tags:
-        tags_str = ', '.join(sidecar.tags)
-        parts.append(f"Tags: {tags_str}")
-    
-    return '\n\n'.join(parts)
+        tagsStr = ", ".join(sidecar.tags)
+        parts.append(f"Tags: {tagsStr}")
+
+    return "\n\n".join(parts)
