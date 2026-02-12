@@ -133,7 +133,7 @@ class MainWindow(QMainWindow):
         # Set the loaded central widget as our central widget
         self.setCentralWidget(loaded_central)
 
-        # Get menu actions from the loaded window and add them to our menu bar
+        # Get menu actions from the loaded window
         self._action_set_input = self._loaded_window.findChild(QAction, "actionSetInputFolder")
         self._action_set_output = self._loaded_window.findChild(QAction, "actionSetOutputFolder")
         self._action_refresh = self._loaded_window.findChild(QAction, "actionRefresh")
@@ -145,16 +145,19 @@ class MainWindow(QMainWindow):
 
         # File menu
         file_menu = menubar.addMenu("&File")
-        if self._action_set_input:
-            file_menu.addAction(self._action_set_input)
-        if self._action_set_output:
-            file_menu.addAction(self._action_set_output)
-        file_menu.addSeparator()
-        if self._action_refresh:
-            file_menu.addAction(self._action_refresh)
-        file_menu.addSeparator()
-        if self._action_exit:
-            file_menu.addAction(self._action_exit)
+        file_actions = [
+            self._action_set_input,
+            self._action_set_output,
+            None,  # Separator
+            self._action_refresh,
+            None,  # Separator
+            self._action_exit
+        ]
+        for action in file_actions:
+            if action is None:
+                file_menu.addSeparator()
+            elif action:
+                file_menu.addAction(action)
 
         # Help menu
         help_menu = menubar.addMenu("&Help")
