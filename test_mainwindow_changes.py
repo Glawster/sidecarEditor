@@ -134,7 +134,7 @@ def test_dimensions_rounded():
                     continue
     
     assert all_rounded, "Some dimensions are not properly rounded"
-    print(f"✓ All dimensions in {len(ui_files)} .ui files are rounded to nnn0 or nnn5")
+    print(f"✓ All dimensions in {len(ui_files)} .ui files are rounded to nnn0 or nnnn5")
     return True
 
 

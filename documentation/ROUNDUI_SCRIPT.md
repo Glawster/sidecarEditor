@@ -17,9 +17,9 @@ The script applies the following rounding logic:
 
 | Last Digit | Action | Example |
 |------------|--------|---------|
-| 0, 1, 2 | Round down to nnn0 | 1198 → 1200 |
+| 0, 1, 2 | Round down to nnn0 | 1202 → 1200 |
 | 3, 4, 5, 6, 7 | Round to nnn5 | 803 → 805 |
-| 8, 9 | Round up to next nnn0 | 607 → 605 |
+| 8, 9 | Round up to next nnn0 | 608 → 610 |
 
 ## Usage
 
