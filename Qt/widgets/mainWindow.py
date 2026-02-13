@@ -21,13 +21,13 @@ from PySide6.QtGui import QAction
 from PySide6.QtUiTools import QUiLoader
 from typing import Optional
 
-from ...src import sidecarConfig
-from ...src.sidecarCore import scanImages, loadSidecar
-from ...src.outputResolver import OutputResolver
+import src.sidecarConfig as sidecarConfig
+from src.sidecarCore import scanImages, loadSidecar
+from src.outputResolver import OutputResolver
 
-from .thumbnailList import ThumbnailList
-from .imagePreview import ImagePreview
-from .editorPanel import EditorPanel
+from Qt.widgets.thumbnailList import ThumbnailList
+from Qt.widgets.imagePreview import ImagePreview
+from Qt.widgets.editorPanel import EditorPanel
 
 
 class MainWindow(QMainWindow):
@@ -80,6 +80,7 @@ class MainWindow(QMainWindow):
         self._outputLabel = loadedCentral.findChild(QLabel, "lblOutputPath")
         btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")
         btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")
+        btnExit = loadedCentral.findChild(QPushButton, "btnExit")
 
         # Get the main content widget where we'll add the splitters
         mainContentWidget = loadedCentral.findChild(QWidget, "wgtMainContent")
@@ -91,6 +92,7 @@ class MainWindow(QMainWindow):
                 self._outputLabel,
                 btnSetInput,
                 btnSetOutput,
+                btnExit,
                 mainContentWidget,
             ]
         ):
@@ -99,6 +101,7 @@ class MainWindow(QMainWindow):
         # Store button references for signal connections
         self._btnSetInput = btnSetInput
         self._btnSetOutput = btnSetOutput
+        self._btnExit = btnExit
 
         # Create layout for main content widget
         contentLayout = QVBoxLayout(mainContentWidget)
@@ -179,6 +182,7 @@ class MainWindow(QMainWindow):
         # Connect button signals
         self._btnSetInput.clicked.connect(self._onSetInputFolder)
         self._btnSetOutput.clicked.connect(self._onSetOutputFolder)
+        self._btnExit.clicked.connect(self.close)
 
         # Connect menu actions
         self._actionSetInput.triggered.connect(self._onSetInputFolder)

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
@@ -19,8 +19,8 @@
      <rect>
       <x>9</x>
       <y>75</y>
-      <width>1182</width>
-      <height>673</height>
+      <width>1180</width>
+      <height>675</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -36,7 +36,7 @@
       <x>0</x>
       <y>0</y>
       <width>595</width>
-      <height>74</height>
+      <height>75</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout">
@@ -164,6 +164,19 @@
      </item>
     </layout>
    </widget>
+   <widget class="QPushButton" name="btnExit">
+    <property name="geometry">
+     <rect>
+      <x>1090</x>
+      <y>755</y>
+      <width>100</width>
+      <height>30</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Exit</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -171,30 +184,30 @@
      <x>0</x>
      <y>0</y>
      <width>1200</width>
-     <height>21</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>&amp;File</string>
     </property>
-    <addaction name="actionSetInputFolder"/>
-    <addaction name="actionSetOutputFolder"/>
-    <addaction name="separator"/>
-    <addaction name="actionRefresh"/>
-    <addaction name="separator"/>
-    <addaction name="actionExit"/>
+    <addaction name="actionSetInputFolder" />
+    <addaction name="actionSetOutputFolder" />
+    <addaction name="separator" />
+    <addaction name="actionRefresh" />
+    <addaction name="separator" />
+    <addaction name="actionExit" />
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>&amp;Help</string>
     </property>
-    <addaction name="actionAbout"/>
+    <addaction name="actionAbout" />
    </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuHelp"/>
+   <addaction name="menuFile" />
+   <addaction name="menuHelp" />
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="statusbar" />
   <action name="actionSetInputFolder">
    <property name="text">
     <string>Set &amp;Input Folder...</string>
@@ -233,6 +246,6 @@
    </property>
   </action>
  </widget>
- <resources/>
- <connections/>
+ <resources />
+ <connections />
 </ui>
