@@ -63,13 +63,13 @@ class ThumbnailList(QListWidget):
 
                 if subfolder not in groups:
                     groups[subfolder] = []
-                groups[subfolder].append(img_path)
+                groups[subfolder].append(imgPath)
 
             # Add images with separators between subfolders
             for subfolder in sorted(groups.keys()):
                 # Add separator if it's not the first group or if subfolder is not empty
                 if subfolder:
-                    self._add_separator(subfolder)
+                    self._addSeparator(subfolder)
 
                 # Add thumbnails for this subfolder
                 for imgPath in groups[subfolder]:

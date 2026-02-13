@@ -21,13 +21,13 @@ from PySide6.QtGui import QAction
 from PySide6.QtUiTools import QUiLoader
 from typing import Optional
 
-from ...src import sidecarConfig
-from ...src.sidecarCore import scanImages, loadSidecar
-from ...src.outputResolver import OutputResolver
+import src.sidecarConfig as sidecarConfig
+from src.sidecarCore import scanImages, loadSidecar
+from src.outputResolver import OutputResolver
 
-from .thumbnailList import ThumbnailList
-from .imagePreview import ImagePreview
-from .editorPanel import EditorPanel
+from Qt.widgets.thumbnailList import ThumbnailList
+from Qt.widgets.imagePreview import ImagePreview
+from Qt.widgets.editorPanel import EditorPanel
 
 
 class MainWindow(QMainWindow):

@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal
 from typing import Optional
-from ...src.sidecarCore import SidecarData, saveSidecar
+
+from src.sidecarCore import SidecarData, saveSidecar
 
 
 class EditorPanel(QWidget):
