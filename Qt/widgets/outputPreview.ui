@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>ImagePreview</class>
- <widget class="QWidget" name="ImagePreview">
+ <class>OutputPreview</class>
+ <widget class="QWidget" name="OutputPreview">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -35,16 +35,6 @@
         </size>
        </property>
       </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="btnShowOutput">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="text">
-        <string>Show Output</string>
-       </property>
-      </widget>
      </item>
     </layout>
    </item>

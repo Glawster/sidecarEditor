@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
@@ -6,176 +6,120 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1200</width>
-    <height>800</height>
+    <width>800</width>
+    <height>600</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Sidecar Editor</string>
+   <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QWidget" name="wgtMainContent" native="true">
-    <property name="geometry">
-     <rect>
-      <x>9</x>
-      <y>75</y>
-      <width>1180</width>
-      <height>675</height>
-     </rect>
-    </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-      <horstretch>0</horstretch>
-      <verstretch>0</verstretch>
-     </sizepolicy>
-    </property>
-   </widget>
-   <widget class="QWidget" name="widget" native="true">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>595</width>
-      <height>75</height>
+      <width>801</width>
+      <height>581</height>
      </rect>
     </property>
-    <layout class="QGridLayout" name="gridLayout">
-     <item row="0" column="7">
-      <spacer name="hrzSpacer1">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item row="2" column="7">
-      <spacer name="hrzSpacer2">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="lblOutputLabel">
-       <property name="text">
-        <string>Output:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="6">
-      <widget class="QPushButton" name="btnSetOutput">
+    <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1">
+     <item>
+      <widget class="QWidget" name="wgtTopBar" native="true">
        <property name="minimumSize">
         <size>
-         <width>150</width>
-         <height>0</height>
+         <width>0</width>
+         <height>50</height>
         </size>
        </property>
-       <property name="maximumSize">
-        <size>
-         <width>150</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>Set Output Folder</string>
-       </property>
+       <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0,0">
+        <item row="1" column="0">
+         <widget class="QLabel" name="lblInputFolder">
+          <property name="text">
+           <string>Input Folder</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QLineEdit" name="txtOutputFolder">
+          <property name="maximumSize">
+           <size>
+            <width>350</width>
+            <height>16777215</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="lblOutputFolder">
+          <property name="text">
+           <string>Output Folder</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="txtInputFolder">
+          <property name="minimumSize">
+           <size>
+            <width>350</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>350</width>
+            <height>16777215</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QPushButton" name="btnSetOutput">
+          <property name="text">
+           <string>Select Output Folder</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QPushButton" name="btnSetInput">
+          <property name="text">
+           <string>Select Input Folder</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3">
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
       </widget>
      </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="lblInputLabel">
-       <property name="text">
-        <string>Input:</string>
+     <item>
+      <widget class="QWidget" name="wgtMainContent" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
        </property>
-      </widget>
-     </item>
-     <item row="0" column="6">
-      <widget class="QPushButton" name="btnSetInput">
        <property name="minimumSize">
         <size>
-         <width>150</width>
+         <width>0</width>
          <height>0</height>
         </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>150</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>Set Input Folder</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QLabel" name="lblInputPath">
-       <property name="minimumSize">
-        <size>
-         <width>400</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>400</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="styleSheet">
-        <string>color: gray;</string>
-       </property>
-       <property name="text">
-        <string>Not set</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QLabel" name="lblOutputPath">
-       <property name="minimumSize">
-        <size>
-         <width>400</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>400</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="styleSheet">
-        <string>color: gray;</string>
-       </property>
-       <property name="text">
-        <string>Not set</string>
        </property>
       </widget>
      </item>
     </layout>
-   </widget>
-   <widget class="QPushButton" name="btnExit">
-    <property name="geometry">
-     <rect>
-      <x>1090</x>
-      <y>755</y>
-      <width>100</width>
-      <height>30</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Exit</string>
-    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -183,69 +127,85 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1200</width>
-     <height>20</height>
+     <width>800</width>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>&amp;File</string>
+     <string>File</string>
     </property>
-    <addaction name="actionSetInputFolder" />
-    <addaction name="actionSetOutputFolder" />
-    <addaction name="separator" />
-    <addaction name="actionRefresh" />
-    <addaction name="separator" />
-    <addaction name="actionExit" />
+    <addaction name="actionSetInput"/>
+    <addaction name="actionSetOutput"/>
+    <addaction name="actionRefresh"/>
+    <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
-     <string>&amp;Help</string>
+     <string>Help</string>
     </property>
-    <addaction name="actionAbout" />
+    <addaction name="actionAbout"/>
    </widget>
-   <addaction name="menuFile" />
-   <addaction name="menuHelp" />
+   <addaction name="menuFile"/>
+   <addaction name="menuHelp"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar" />
-  <action name="actionSetInputFolder">
-   <property name="text">
-    <string>Set &amp;Input Folder...</string>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionSetInput">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::FolderNew"/>
    </property>
-   <property name="shortcut">
-    <string>Ctrl+I</string>
+   <property name="text">
+    <string>Set Input Folder</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
-  <action name="actionSetOutputFolder">
-   <property name="text">
-    <string>Set &amp;Output Folder...</string>
+  <action name="actionSetOutput">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::FolderNew"/>
    </property>
-   <property name="shortcut">
-    <string>Ctrl+O</string>
+   <property name="text">
+    <string>Set Output Folder</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
   <action name="actionRefresh">
-   <property name="text">
-    <string>&amp;Refresh</string>
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::ViewRefresh"/>
    </property>
-   <property name="shortcut">
-    <string>F5</string>
+   <property name="text">
+    <string>Refresh</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
   <action name="actionExit">
-   <property name="text">
-    <string>E&amp;xit</string>
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::ApplicationExit"/>
    </property>
-   <property name="shortcut">
-    <string>Ctrl+Q</string>
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
   <action name="actionAbout">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::HelpAbout"/>
+   </property>
    <property name="text">
-    <string>&amp;About</string>
+    <string>About</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
  </widget>
- <resources />
- <connections />
+ <resources/>
+ <connections/>
 </ui>

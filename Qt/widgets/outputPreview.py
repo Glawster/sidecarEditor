@@ -16,7 +16,7 @@ from PySide6.QtGui import QPixmap
 from typing import Optional
 from pathlib import Path
 
-class ImagePreview(QWidget):
+class OutputPreview(QWidget):
     """Widget for displaying image preview with original/output toggle."""
 
     def __init__(self, parent=None):
@@ -30,11 +30,11 @@ class ImagePreview(QWidget):
 
     def _setupUi(self):
         """Set up the user interface by loading from .ui file."""
-        uiFilePath = Path(__file__).parent / "imagePreview.ui"
+        uiFilePath = Path(__file__).parent / "outputPreview.ui"
 
         loader = QUiLoader()
         uiFile = QFile(str(uiFilePath))
-        if not uiFile.open(QFile.ReadOnly): # type: ignore
+        if not uiFile.open(QFile.ReadOnly):
             raise RuntimeError(f"Failed to open UI file: {uiFilePath}")
 
         self.ui = loader.load(uiFile, self)
@@ -43,25 +43,19 @@ class ImagePreview(QWidget):
         if self.ui is None:
             raise RuntimeError(f"Failed to load UI file: {uiFilePath}")
 
-        self._showOutputButton = self.ui.findChild(QPushButton, "btnShowOutput")
         self._statusLabel = self.ui.findChild(QLabel, "lblStatus")
         self._imageLabel = self.ui.findChild(QLabel, "lblImage")
 
         missing = [name for name, w in {
-            "btnShowOutput": self._showOutputButton,
             "lblStatus": self._statusLabel,
             "lblImage": self._imageLabel,
         }.items() if w is None]
         if missing:
-            raise RuntimeError(f"Missing widgets in imagePreview.ui: {', '.join(missing)}")
+            raise RuntimeError(f"Missing widgets in outputPreview.ui: {', '.join(missing)}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.ui)
-
-        # wire events + initial state
-        self._showOutputButton.clicked.connect(self._onToggle) # type: ignore
-        self._showOutputButton.setEnabled(False) # type: ignore
 
     def setImages(self, originalPath: str, outputPath: Optional[str] = None):
         """
@@ -76,16 +70,16 @@ class ImagePreview(QWidget):
         self._showingOriginal = True
 
         # Update toggle button state
-        if outputPath:
-            self._showOutputButton.setEnabled(True) # type: ignore
-            self._showOutputButton.setText("Show Output") # type: ignore
-        else:
-            self._showOutputButton.setEnabled(False) # type: ignore
-            self._showOutputButton.setText("Show Output (Not Available)") # type: ignore
+#        if outputPath:
+#            self._showOutputButton.setEnabled(True)
+#            self._showOutputButton.setText("Show Output")
+#        else:
+#            self._showOutputButton.setEnabled(False)
+#            self._showOutputButton.setText("Show Output (Not Available)")
 
         # Display the original image
-        self._displayImage(originalPath) # type: ignore
-        self._updateStatus() # type: ignore
+        self._displayImage(originalPath)
+        self._updateStatus()
 
     def _displayImage(self, imagePath: str):
         """
@@ -97,53 +91,53 @@ class ImagePreview(QWidget):
         pixmap = QPixmap(imagePath)
 
         if pixmap.isNull():
-            self._imageLabel.setText(f"Could not load image:\n{imagePath}") # type: ignore
+            self._imageLabel.setText(f"Could not load image:\n{imagePath}")
             return
 
         # Scale to fit widget while maintaining aspect ratio
         scaledPixmap = pixmap.scaled(
-            self._imageLabel.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation # type: ignore
+            self._imageLabel.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
         )
 
-        self._imageLabel.setPixmap(scaledPixmap) # type: ignore
+        self._imageLabel.setPixmap(scaledPixmap)
 
-    def _onToggle(self):
-        """Handle toggle button click."""
-        if not self._outputPath:
-            return
-
-        self._showingOriginal = not self._showingOriginal
-
-        if self._showingOriginal:
-            self._displayImage(self._originalPath) # type: ignore
-            self._showOutputButton.setText("Show Output")  # type: ignore
-        else:
-            self._displayImage(self._outputPath) # type: ignore
-            self._showOutputButton.setText("Show Original")  # type: ignore
-
-        self._updateStatus()
+#    def _onToggle(self):
+#        """Handle toggle button click."""
+#        if not self._outputPath:
+#            return
+#
+#        self._showingOriginal = not self._showingOriginal
+#
+#        if self._showingOriginal:
+#            self._displayImage(self._originalPath)
+#            self._showOutputButton.setText("Show Output")
+#        else:
+#            self._displayImage(self._outputPath)
+#            self._showOutputButton.setText("Show Original")
+#
+#        self._updateStatus()
 
     def _updateStatus(self):
         """Update the status label."""
         import os
 
         if self._showingOriginal:
-            status = f"Original: {os.path.basename(self._originalPath)}" # type: ignore
+            status = f"Original: {os.path.basename(self._originalPath)}"
         else:
-            status = f"Output: {os.path.basename(self._outputPath)}" # type: ignore
+            status = f"Output: {os.path.basename(self._outputPath)}"
 
-        self._statusLabel.setText(status)  # type: ignore
+        self._statusLabel.setText(status)
 
     def clear(self):
         """Clear the displayed image."""
         self._originalPath = None
         self._outputPath = None
         self._showingOriginal = True
-        self._imageLabel.clear()  # type: ignore
-        self._imageLabel.setText("No image selected")  # type: ignore
-        self._statusLabel.setText("No image selected")  # type: ignore
-        self._showOutputButton.setEnabled(False)  # type: ignore
-        self._showOutputButton.setText("Show Output")  # type: ignore
+        self._imageLabel.clear()
+        self._imageLabel.setText("No image selected")
+        self._statusLabel.setText("No image selected")
+#        self._showOutputButton.setEnabled(False)
+#        self._showOutputButton.setText("Show Output")
 
     def resizeEvent(self, event):
         """Handle resize events to re-scale the image."""
