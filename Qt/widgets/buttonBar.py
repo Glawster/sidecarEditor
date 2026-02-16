@@ -3,7 +3,7 @@ from typing import Optional
 
 from PySide6.QtCore import QFile, Signal
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QWidget, QDialogButtonBox
+from PySide6.QtWidgets import QWidget, QDialogButtonBox, QVBoxLayout
 
 
 class ButtonBar(QWidget):
@@ -24,15 +24,19 @@ class ButtonBar(QWidget):
             raise RuntimeError(f"Failed to open UI file: {uiFilePath}")
 
         # Root of the .ui is a QWidget; parent it to self
-        loadedRoot = loader.load(uiFile, self)
+        _buttonBox = loader.load(uiFile, self)
         uiFile.close()
 
-        if loadedRoot is None:
+        if _buttonBox is None:
             raise RuntimeError(f"Failed to load UI file: {uiFilePath}")
 
-        self._buttonBox = loadedRoot.findChild(QDialogButtonBox, "buttonBox")  # type: ignore
+        self._buttonBox = _buttonBox.findChild(QDialogButtonBox, "buttonBox")  # type: ignore
         if self._buttonBox is None:
             raise RuntimeError("Missing widget in buttonBar.ui: buttonBox")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(_buttonBox)
 
         self._buttonBox.accepted.connect(self.okRequested.emit)  # type: ignore
         self._buttonBox.rejected.connect(self.cancelRequested.emit)  # type: ignore

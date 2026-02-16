@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QSplitter,
     QFileDialog,
     QMessageBox,
@@ -54,7 +55,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(10, self._showWelcome)
 
     def _setupUi(self):
-        """Set up the user interface by loading from .ui file."""
+        """Set up the user interface by loading from .ui file, then inject dynamic panels."""
         uiFilePath = Path(__file__).parent / "mainwindow.ui"
 
         loader = QUiLoader()
@@ -62,138 +63,141 @@ class MainWindow(QMainWindow):
         if not uiFile.open(QFile.ReadOnly):  # type: ignore
             raise RuntimeError(f"Failed to open UI file: {uiFilePath}")
 
-        # Load the UI - this creates a QMainWindow with all its properties
-        # Keep a reference to prevent garbage collection of actions
         self._loadedWindow = loader.load(uiFile, None)
         uiFile.close()
 
-        # Copy window properties from loaded window
-        self.setWindowTitle(self._loadedWindow.windowTitle())  # type: ignore
-        self.setGeometry(self._loadedWindow.geometry())  # type: ignore
+        if self._loadedWindow is None:
+            raise RuntimeError(f"Failed to load UI file: {uiFilePath}")
 
         loadedCentral = self._loadedWindow.centralWidget()  # type: ignore
-        if not loadedCentral:
+        if loadedCentral is None:
             raise RuntimeError("Loaded UI has no central widget")
-        loadedCentral.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
 
-        # Extract UI elements from the loaded central widget
-        self._inputLabel = loadedCentral.findChild(QLineEdit, "txtInputFolder")  # type: ignore
-        self._outputLabel = loadedCentral.findChild(QLineEdit, "txtOutputFolder")  # type: ignore
-        btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")  # type: ignore
-        btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")  # type: ignore
+        # window basics
+        self.setWindowTitle(self._loadedWindow.windowTitle())
+        self.setGeometry(self._loadedWindow.geometry())
 
-        # Placeholder widget where we inject our regions
-        mainContentWidget = loadedCentral.findChild(QWidget, "wgtMainContent")  # type: ignore
-        mainContentWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+        # reuse UI menubar/statusbar (prevents double menubar)
+        loadedMenuBar = self._loadedWindow.menuBar()  # type: ignore
+        if loadedMenuBar is not None:
+            loadedMenuBar.setParent(self)
+            self.setMenuBar(loadedMenuBar)
 
-        missing = [
-            name
-            for name, w in {
-                "txtInputFolder": self._inputLabel,
-                "txtOutputFolder": self._outputLabel,
-                "btnSetInput": btnSetInput,
-                "btnSetOutput": btnSetOutput,
-                "wgtMainContent": mainContentWidget,
-            }.items()
-            if w is None
-        ]
-        if missing:
-            raise RuntimeError(
-                f"Failed to find required widgets in UI file: {', '.join(missing)}"
-            )
+        loadedStatusBar = self._loadedWindow.statusBar()  # type: ignore
+        if loadedStatusBar is not None:
+            loadedStatusBar.setParent(self)
+            self.setStatusBar(loadedStatusBar)
 
-        # Store button references for signal connections
-        self._btnSetInput = btnSetInput
-        self._btnSetOutput = btnSetOutput
+        self.setCentralWidget(loadedCentral)
 
-        # ------------------------------------------------------------
-        # MAIN CONTENT LAYOUT (inside wgtMainContent)
-        # ------------------------------------------------------------
-        contentLayout = QVBoxLayout(mainContentWidget)
-        contentLayout.setContentsMargins(0, 0, 0, 0)
+        # placeholders from UI
+        self._topBarWidget = loadedCentral.findChild(QWidget, "wgtTopBar")
+        self._mainContentWidget = loadedCentral.findChild(QWidget, "wgtMainContent")
+        if self._topBarWidget is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: wgtTopBar")
+        if self._mainContentWidget is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: wgtMainContent")
 
-        # ------------------------------------------------------------
-        # SIDECAR REGIONS
-        # Left: thumbnails
-        # Right: preview/editor/output preview
-        # ------------------------------------------------------------
-        self._sidecarRegion = QSplitter(Qt.Horizontal)  # type: ignore
-        self._sidecarRegion.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+        # top bar controls
+        self._btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")
+        self._btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")
+        if self._btnSetInput is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: btnSetInput")
+        if self._btnSetOutput is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: btnSetOutput")
 
-        self._buttonBar = ButtonBar(mainContentWidget)
-        self._buttonBar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)  # type: ignore
+        self._txtInputFolder = loadedCentral.findChild(QLineEdit, "txtInputFolder")
+        self._txtOutputFolder = loadedCentral.findChild(QLineEdit, "txtOutputFolder")
+        if self._txtInputFolder is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: txtInputFolder")
+        if self._txtOutputFolder is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: txtOutputFolder")
 
-        # Left region: thumbnails
+        # actions
+        self._actionSetInput = self._loadedWindow.findChild(QAction, "actionSetInput")
+        self._actionSetOutput = self._loadedWindow.findChild(QAction, "actionSetOutput")
+        self._actionRefresh = self._loadedWindow.findChild(QAction, "actionRefresh")
+        self._actionExit = self._loadedWindow.findChild(QAction, "actionExit")
+        self._actionAbout = self._loadedWindow.findChild(QAction, "actionAbout")
+
+        # main layout inside wgtMainContent
+        mainLayout = self._mainContentWidget.layout()
+        if mainLayout is None:
+            mainLayout = QVBoxLayout(self._mainContentWidget)
+
+        mainLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.setSpacing(6)
+
+        # --- splitters ---
+        self._sidecarSplitter = QSplitter(Qt.Horizontal, self._mainContentWidget) # type: ignore
+        self._sidecarSplitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+
         self._thumbnailList = ThumbnailList()
         self._thumbnailList.setMinimumWidth(380)
-        self._thumbnailList.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
-        self._sidecarRegion.addWidget(self._thumbnailList)
+        self._thumbnailList.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        self._sidecarSplitter.addWidget(self._thumbnailList)
 
-        # Editor region: three columns (preview | editor | output preview)
-        self._editorRegion = QSplitter(Qt.Horizontal)  # type: ignore
-        self._editorRegion.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+        self._editorSplitter = QSplitter(Qt.Horizontal, self._mainContentWidget) # type: ignore
+        self._editorSplitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
 
-        # Preview (input)
-        self._imagePreview = ImagePreview()
-        self._imagePreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
-        self._editorRegion.addWidget(self._imagePreview)
+        self._inputPreview = ImagePreview()
+        self._inputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        self._editorSplitter.addWidget(self._inputPreview)
 
-        # Editor
         self._editorPanel = EditorPanel()
-        self._editorPanel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
-        self._editorRegion.addWidget(self._editorPanel)
+        self._editorPanel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        self._editorSplitter.addWidget(self._editorPanel)
 
-        # Output preview (same file resolved in output tree)
         self._outputPreview = OutputPreview()
-        self._outputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
-        self._editorRegion.addWidget(self._outputPreview)
+        self._outputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        self._editorSplitter.addWidget(self._outputPreview)
 
-        # Stretch behaviour (editor gets more horizontal space)
-        self._editorRegion.setStretchFactor(0, 1)  # input preview
-        self._editorRegion.setStretchFactor(1, 2)  # editor
-        self._editorRegion.setStretchFactor(2, 1)  # output preview
+        self._editorSplitter.setStretchFactor(0, 1)
+        self._editorSplitter.setStretchFactor(1, 2)
+        self._editorSplitter.setStretchFactor(2, 1)
 
-        self._sidecarRegion.addWidget(self._editorRegion)
+        self._sidecarSplitter.addWidget(self._editorSplitter)
+        self._sidecarSplitter.setSizes([400, 1000])
+        self._editorSplitter.setSizes([350, 600, 350])
 
-        # Default region sizing (applied again after geometry restore)
-        self._sidecarRegion.setSizes([400, 1000])
-        self._editorRegion.setSizes([350, 300, 350])
+        mainLayout.addWidget(self._sidecarSplitter, 1)
 
-        contentLayout.addWidget(self._sidecarRegion, 1)
-        contentLayout.addWidget(self._buttonBar, 0)
+        # --- bottom-right button bar ---
+        self._buttonBar = ButtonBar(self._mainContentWidget)
+        self._buttonBar.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed) # type: ignore
+        self._buttonBar.setMinimumHeight(44)
+        self._buttonBar.setMinimumWidth(160)   # helps it not collapse horizontally
 
-        # Set the loaded central widget as our central widget
-        self.setCentralWidget(loadedCentral)
-        self.setMenuBar(self._loadedWindow.menuBar())  # type: ignore
-        self.setStatusBar(self._loadedWindow.statusBar())  # type: ignore
+        bottomRow = QHBoxLayout()
+        bottomRow.setContentsMargins(0, 0, 0, 0)
+        bottomRow.setSpacing(6)
+        bottomRow.addStretch(1)
+        bottomRow.addWidget(self._buttonBar)
 
-        # Menu actions from loaded window
-        self._actionSetInput = self._loadedWindow.findChild(QAction, "actionSetInput")  # type: ignore
-        self._actionSetOutput = self._loadedWindow.findChild(QAction, "actionSetOutput")  # type: ignore
-        self._actionRefresh = self._loadedWindow.findChild(QAction, "actionRefresh")  # type: ignore
-        self._actionAbout = self._loadedWindow.findChild(QAction, "actionAbout")  # type: ignore
-        self._actionExit = self._loadedWindow.findChild(QAction, "actionExit")  # type: ignore
+        mainLayout.addLayout(bottomRow, 0)
 
-        # button bar
-        self._buttonBar.cancelRequested.connect(self.close)
-        self._buttonBar.okRequested.connect(self._onOk)
-
-        self.statusBar().showMessage("Ready")
+        if self.statusBar():
+            self.statusBar().showMessage("Ready")
 
     def _connectSignals(self):
         """Connect UI signals to slots."""
         # Buttons
-        self._btnSetInput.clicked.connect(self._onSetInputFolder)  # type: ignore
-        self._btnSetOutput.clicked.connect(self._onSetOutputFolder)  # type: ignore
+        self._btnSetInput.clicked.connect(self._onSetInputFolder)  
+        self._btnSetOutput.clicked.connect(self._onSetOutputFolder) 
 
         # Menu actions
-        self._actionSetInput.triggered.connect(self._onSetInputFolder)  # type: ignore
-        self._actionSetOutput.triggered.connect(self._onSetOutputFolder)  # type: ignore
-        self._actionRefresh.triggered.connect(self._onRefresh)  # type: ignore
-        self._actionAbout.triggered.connect(self._onAbout)  # type: ignore
+        if self._actionSetInput:
+            self._actionSetInput.triggered.connect(self._onSetInputFolder)
+        if self._actionSetOutput:
+            self._actionSetOutput.triggered.connect(self._onSetOutputFolder)
+        if self._actionRefresh:
+            self._actionRefresh.triggered.connect(self._onRefresh)
+        if self._actionAbout:
+            self._actionAbout.triggered.connect(self._onAbout)
 
         # Menu exit
-        self._actionExit.triggered.connect(self.close)  # type: ignore
+        if self._actionExit:
+            self._actionExit.triggered.connect(self.close)  
 
         # Button Bar Actions
         self._buttonBar.cancelRequested.connect(self.close)
@@ -242,10 +246,10 @@ class MainWindow(QMainWindow):
     def _applyRegionDefaults(self):
         """Apply default region sizing after layouts have settled."""
         if hasattr(self, "_sidecarRegion"):
-            self._sidecarRegion.setSizes([400, 1000])
+            self._sidecarRegion.setSizes([400, 1000]) # type: ignore
 
         if hasattr(self, "_editorRegion"):
-            self._editorRegion.setSizes([350, 300, 350])
+               self._sidecarRegion.setSizes([400, 1000]) # type: ignore
 
     def _saveState(self):
         """Save window state and paths to config."""
@@ -285,15 +289,15 @@ class MainWindow(QMainWindow):
     def _setInputRoot(self, path: str):
         """Set the input root folder."""
         self._inputRoot = path
-        self._inputLabel.setText(path)  # type: ignore
-        self._inputLabel.setStyleSheet("")  # type: ignore
+        self._txtInputFolder.setText(path)  # type: ignore
+        self._txtInputFolder.setStyleSheet("")  # type: ignore
         sidecarConfig.setInputRoot(path)
 
     def _setOutputRoot(self, path: str):
         """Set the output root folder."""
         self._outputRoot = path
-        self._outputLabel.setText(path)  # type: ignore
-        self._outputLabel.setStyleSheet("")  # type: ignore
+        self._txtOutputFolder.setText(path)  # type: ignore
+        self._txtOutputFolder.setStyleSheet("")  # type: ignore
         self._outputResolver.setOutputRoot(path)
         sidecarConfig.setOutputRoot(path)
 
@@ -350,7 +354,7 @@ class MainWindow(QMainWindow):
         # Update previews:
         # - left preview: input only
         # - right preview: output only (if not found, show input again as a fallback)
-        self._imagePreview.setImages(imagePath, None)
+        self._inputPreview.setImages(imagePath, None)
 
         if outputPath:
             self._outputPreview.setImages(outputPath, None)
