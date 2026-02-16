@@ -34,17 +34,17 @@ class OutputPreview(QWidget):
 
         loader = QUiLoader()
         uiFile = QFile(str(uiFilePath))
-        if not uiFile.open(QFile.ReadOnly):
+        if not uiFile.open(QFile.ReadOnly): # type: ignore
             raise RuntimeError(f"Failed to open UI file: {uiFilePath}")
 
-        self.ui = loader.load(uiFile, self)
+        root = loader.load(uiFile, None)
         uiFile.close()
 
-        if self.ui is None:
+        if root is None:
             raise RuntimeError(f"Failed to load UI file: {uiFilePath}")
 
-        self._statusLabel = self.ui.findChild(QLabel, "lblStatus")
-        self._imageLabel = self.ui.findChild(QLabel, "lblImage")
+        self._statusLabel = root.findChild(QLabel, "lblStatus")
+        self._imageLabel = root.findChild(QLabel, "lblImage")
 
         missing = [name for name, w in {
             "lblStatus": self._statusLabel,
@@ -55,7 +55,9 @@ class OutputPreview(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.ui)
+        layout.addWidget(root)
+
+        self.ui = root
 
     def setImages(self, originalPath: str, outputPath: Optional[str] = None):
         """
@@ -91,15 +93,15 @@ class OutputPreview(QWidget):
         pixmap = QPixmap(imagePath)
 
         if pixmap.isNull():
-            self._imageLabel.setText(f"Could not load image:\n{imagePath}")
+            self._imageLabel.setText(f"Could not load image:\n{imagePath}") # type: ignore
             return
 
         # Scale to fit widget while maintaining aspect ratio
         scaledPixmap = pixmap.scaled(
-            self._imageLabel.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            self._imageLabel.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation # type: ignore
         )
 
-        self._imageLabel.setPixmap(scaledPixmap)
+        self._imageLabel.setPixmap(scaledPixmap) # type: ignore
 
 #    def _onToggle(self):
 #        """Handle toggle button click."""
@@ -122,20 +124,20 @@ class OutputPreview(QWidget):
         import os
 
         if self._showingOriginal:
-            status = f"Original: {os.path.basename(self._originalPath)}"
+            status = f"Original: {os.path.basename(self._originalPath)}" # type: ignore
         else:
-            status = f"Output: {os.path.basename(self._outputPath)}"
+            status = f"Output: {os.path.basename(self._outputPath)}" # type: ignore
 
-        self._statusLabel.setText(status)
+        self._statusLabel.setText(status) # type: ignore
 
     def clear(self):
         """Clear the displayed image."""
         self._originalPath = None
         self._outputPath = None
         self._showingOriginal = True
-        self._imageLabel.clear()
-        self._imageLabel.setText("No image selected")
-        self._statusLabel.setText("No image selected")
+        self._imageLabel.clear() # type: ignore
+        self._imageLabel.setText("No image selected") # type: ignore
+        self._statusLabel.setText("No image selected") # type: ignore
 #        self._showOutputButton.setEnabled(False)
 #        self._showOutputButton.setText("Show Output")
 

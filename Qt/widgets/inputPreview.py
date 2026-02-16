@@ -2,6 +2,7 @@
 Image preview widget with original/output toggle.
 """
 
+from logging import root
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -16,7 +17,7 @@ from PySide6.QtGui import QPixmap
 from typing import Optional
 from pathlib import Path
 
-class ImagePreview(QWidget):
+class InputPreview(QWidget):
     """Widget for displaying image preview with original/output toggle."""
 
     def __init__(self, parent=None):
@@ -30,22 +31,22 @@ class ImagePreview(QWidget):
 
     def _setupUi(self):
         """Set up the user interface by loading from .ui file."""
-        uiFilePath = Path(__file__).parent / "imagePreview.ui"
+        uiFilePath = Path(__file__).parent / "inputPreview.ui"
 
         loader = QUiLoader()
         uiFile = QFile(str(uiFilePath))
         if not uiFile.open(QFile.ReadOnly): # type: ignore
             raise RuntimeError(f"Failed to open UI file: {uiFilePath}")
 
-        self.ui = loader.load(uiFile, self)
+        root = loader.load(uiFile, None)
         uiFile.close()
 
-        if self.ui is None:
+        if root is None:
             raise RuntimeError(f"Failed to load UI file: {uiFilePath}")
 
-        self._showOutputButton = self.ui.findChild(QPushButton, "btnShowOutput")
-        self._statusLabel = self.ui.findChild(QLabel, "lblStatus")
-        self._imageLabel = self.ui.findChild(QLabel, "lblImage")
+        self._showOutputButton = root.findChild(QPushButton, "btnShowOutput")
+        self._statusLabel = root.findChild(QLabel, "lblStatus")
+        self._imageLabel = root.findChild(QLabel, "lblImage")
 
         missing = [name for name, w in {
             "btnShowOutput": self._showOutputButton,
@@ -53,12 +54,14 @@ class ImagePreview(QWidget):
             "lblImage": self._imageLabel,
         }.items() if w is None]
         if missing:
-            raise RuntimeError(f"Missing widgets in imagePreview.ui: {', '.join(missing)}")
+            raise RuntimeError(f"Missing widgets in inputPreview.ui: {', '.join(missing)}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.ui)
-
+        layout.addWidget(root)
+        
+        self.ui = root
+    
         # wire events + initial state
         self._showOutputButton.clicked.connect(self._onToggle) # type: ignore
         self._showOutputButton.setEnabled(False) # type: ignore

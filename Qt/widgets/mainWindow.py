@@ -29,7 +29,7 @@ from src.sidecarCore import scanImages, loadSidecar
 from src.outputResolver import OutputResolver
 
 from Qt.widgets.thumbnailList import ThumbnailList
-from Qt.widgets.imagePreview import ImagePreview
+from Qt.widgets.inputPreview import InputPreview, InputPreview
 from Qt.widgets.editorPanel import EditorPanel
 from Qt.widgets.outputPreview import OutputPreview
 from Qt.widgets.buttonBar import ButtonBar
@@ -53,6 +53,12 @@ class MainWindow(QMainWindow):
 
         # Show welcome message after window is shown
         QTimer.singleShot(10, self._showWelcome)
+
+    def _debugSizes(self):
+        """Debug method to print window and widget sizes."""
+        cw = self.centralWidget()
+        print("AFTER SHOW  MW:", self.geometry())
+        print("AFTER SHOW  CW:", cw.geometry(), "layout:", type(cw.layout()).__name__ if cw.layout() else None)
 
     def _setupUi(self):
         """Set up the user interface by loading from .ui file, then inject dynamic panels."""
@@ -98,6 +104,21 @@ class MainWindow(QMainWindow):
         if self._mainContentWidget is None:
             raise RuntimeError("Missing widget in mainwindow.ui: wgtMainContent")
 
+        centralLayout = loadedCentral.layout()
+        if centralLayout is None:
+            centralLayout = QVBoxLayout(loadedCentral)
+            centralLayout.setContentsMargins(0, 0, 0, 0)
+            centralLayout.setSpacing(6)
+            centralLayout.addWidget(self._topBarWidget)
+            centralLayout.addWidget(self._mainContentWidget)
+
+        centralLayout.setStretch(0, 0)  # top bar
+        centralLayout.setStretch(1, 1)  # main content fills
+
+        #print("central has layout:", type(loadedCentral.layout()).__name__ if loadedCentral.layout() else None)
+        #print("topBar geo:", self._topBarWidget.geometry(), "policy:", self._topBarWidget.sizePolicy())
+        #print("mainContent geo:", self._mainContentWidget.geometry(), "policy:", self._mainContentWidget.sizePolicy())
+
         # top bar controls
         self._btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")
         self._btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")
@@ -124,43 +145,57 @@ class MainWindow(QMainWindow):
         mainLayout = self._mainContentWidget.layout()
         if mainLayout is None:
             mainLayout = QVBoxLayout(self._mainContentWidget)
+        #print("mainLayout:", type(mainLayout).__name__,
+        #    "sizeConstraint:", mainLayout.sizeConstraint(),
+        #    "alignment:", int(mainLayout.alignment()))
 
         mainLayout.setContentsMargins(0, 0, 0, 0)
         mainLayout.setSpacing(6)
 
         # --- splitters ---
-        self._sidecarSplitter = QSplitter(Qt.Horizontal, self._mainContentWidget) # type: ignore
-        self._sidecarSplitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        # mainContentWidget is split horizontally the bottom half becomes the sidecar frame
+        self._sidecarFrame = QSplitter(Qt.Horizontal, self._mainContentWidget) # type: ignore
+        self._sidecarFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
 
+        # create the thumbnail widget and add to sidecar frame
         self._thumbnailList = ThumbnailList()
         self._thumbnailList.setMinimumWidth(380)
         self._thumbnailList.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
-        self._sidecarSplitter.addWidget(self._thumbnailList)
+        self._sidecarFrame.addWidget(self._thumbnailList)
 
-        self._editorSplitter = QSplitter(Qt.Horizontal, self._mainContentWidget) # type: ignore
-        self._editorSplitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        # split the sidecar frame the right side becomes the editor frame (with input preview, editor panel, output preview)
+        self._editorFrame = QSplitter(Qt.Horizontal, self._sidecarFrame) # type: ignore
+        self._editorFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
 
-        self._inputPreview = ImagePreview()
+        self._inputPreview = InputPreview()
         self._inputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
-        self._editorSplitter.addWidget(self._inputPreview)
+        self._editorFrame.addWidget(self._inputPreview)
 
         self._editorPanel = EditorPanel()
         self._editorPanel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
-        self._editorSplitter.addWidget(self._editorPanel)
+        self._editorFrame.addWidget(self._editorPanel)
 
         self._outputPreview = OutputPreview()
         self._outputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
-        self._editorSplitter.addWidget(self._outputPreview)
+        self._editorFrame.addWidget(self._outputPreview)
 
-        self._editorSplitter.setStretchFactor(0, 1)
-        self._editorSplitter.setStretchFactor(1, 2)
-        self._editorSplitter.setStretchFactor(2, 1)
+        self._editorFrame.setStretchFactor(0, 1)
+        self._editorFrame.setStretchFactor(1, 2)
+        self._editorFrame.setStretchFactor(2, 1)
 
-        self._sidecarSplitter.addWidget(self._editorSplitter)
-        self._sidecarSplitter.setSizes([400, 1000])
-        self._editorSplitter.setSizes([350, 600, 350])
+        # add the editor frame to the sidecar frame (right side)
+        self._sidecarFrame.addWidget(self._editorFrame)
+        #self._sidecarFrame.setSizes([400, 1000])
+        #self._editorFrame.setSizes([350, 600, 350])
 
-        mainLayout.addWidget(self._sidecarSplitter, 1)
+        # add the sidecar frame to the main content layout
+        mainLayout.addWidget(self._sidecarFrame, 1)
+
+        #print("policies:",
+        #    self._thumbnailList.sizePolicy(),
+        #    self._inputPreview.sizePolicy(),
+        #    self._editorPanel.sizePolicy(),
+        #    self._outputPreview.sizePolicy())
 
         # --- bottom-right button bar ---
         self._buttonBar = ButtonBar(self._mainContentWidget)
@@ -175,9 +210,14 @@ class MainWindow(QMainWindow):
         bottomRow.addWidget(self._buttonBar)
 
         mainLayout.addLayout(bottomRow, 0)
+        #cw = self.centralWidget()
+        #print("centralWidget:", cw, "layout:", type(cw.layout()).__name__ if cw.layout() else None)
+        #print("cw geo:", cw.geometry(), "mw geo:", self.geometry())
 
         if self.statusBar():
             self.statusBar().showMessage("Ready")
+        #print("central layout after setup:", type(self.centralWidget().layout()).__name__ if self.centralWidget().layout() else None)
+
 
     def _connectSignals(self):
         """Connect UI signals to slots."""
