@@ -2,20 +2,22 @@
 Editor panel widget for editing sidecar data.
 """
 
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Optional, Dict
+
+from PySide6.QtCore import QFile, Signal
+from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
-    QLabel,
-    QPushButton,
     QTextEdit,
     QMessageBox,
     QCheckBox,
+    QPushButton,
 )
-from PySide6.QtCore import QFile, Signal
-from PySide6.QtUiTools import QUiLoader
-
-from typing import Optional
-from pathlib import Path
 
 from src.sidecarCore import SidecarData, saveSidecar
 
@@ -23,7 +25,6 @@ from src.sidecarCore import SidecarData, saveSidecar
 class EditorPanel(QWidget):
     """Widget for editing sidecar prompt data."""
 
-    # Signal emitted when sidecar is saved
     sidecarSaved = Signal(str)  # imagePath
 
     def __init__(self, parent=None):
@@ -32,8 +33,11 @@ class EditorPanel(QWidget):
         self._currentSidecar: Optional[SidecarData] = None
         self._setupUi()
 
+    # ------------------------------------------------------------
+    # UI setup
+    # ------------------------------------------------------------
+
     def _setupUi(self):
-        """Set up the user interface by loading from .ui file."""
         uiFilePath = Path(__file__).parent / "editorPanel.ui"
 
         loader = QUiLoader()
@@ -47,12 +51,11 @@ class EditorPanel(QWidget):
         if self.ui is None:
             raise RuntimeError(f"Failed to load UI file: {uiFilePath}")
 
-        # Embed the loaded UI into this widget
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.ui)
 
-        # Grab widgets by objectName (must match Qt Designer objectName)
+        # Positive prompt fields
         self._subjectPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtSubjectPrompt")  # type: ignore
         self._subjectRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtSubjectRaw")  # type: ignore
         self._posePrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtPosePrompt")  # type: ignore
@@ -75,9 +78,10 @@ class EditorPanel(QWidget):
         self._chkReviewed: QCheckBox = self.ui.findChild(QCheckBox, "chkReviewed")  # type: ignore
         self._txtNotes: QTextEdit = self.ui.findChild(QTextEdit, "txtNotes")  # type: ignore
 
-        self._generateButton: QPushButton = self.ui.findChild(QPushButton, "btnGenerate")  # type: ignore
+        # Buttons
         self._saveButton: QPushButton = self.ui.findChild(QPushButton, "btnSave")  # type: ignore
         self._revertButton: QPushButton = self.ui.findChild(QPushButton, "btnRevert")  # type: ignore
+        self._generateButton: Optional[QPushButton] = self.ui.findChild(QPushButton, "btnGenerate")  # type: ignore
 
         missing = [
             name
@@ -99,100 +103,156 @@ class EditorPanel(QWidget):
                 "chkLocked": self._chkLocked,
                 "chkReviewed": self._chkReviewed,
                 "txtNotes": self._txtNotes,
-                "btnGenerate": self._generateButton,
                 "btnSave": self._saveButton,
                 "btnRevert": self._revertButton,
             }.items()
             if w is None
         ]
         if missing:
-            raise RuntimeError(
-                f"Missing widgets in editorPanel.ui: {', '.join(missing)}"
-            )
+            raise RuntimeError(f"Missing widgets in editorPanel.ui: {', '.join(missing)}")
 
-        # Wire signals (same behaviour as before)
-        self._subjectPrompt.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._subjectRaw.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._posePrompt.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._poseRaw.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._clothingPrompt.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._clothingRaw.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._lingeriePrompt.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._lingerieRaw.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._settingPrompt.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._settingRaw.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._compositionPrompt.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._compositionRaw.textChanged.connect(self._onContentChanged) # type: ignore
+        # Signals
+        for w in (
+            self._subjectPrompt, self._subjectRaw,
+            self._posePrompt, self._poseRaw,
+            self._clothingPrompt, self._clothingRaw,
+            self._lingeriePrompt, self._lingerieRaw,
+            self._settingPrompt, self._settingRaw,
+            self._compositionPrompt, self._compositionRaw,
+            self._negPromptEdit, self._negStyleEdit,
+            self._txtNotes,
+        ):
+            w.textChanged.connect(self._onContentChanged)  # type: ignore
+
         self._chkLocked.stateChanged.connect(self._onContentChanged)  # type: ignore
         self._chkReviewed.stateChanged.connect(self._onContentChanged)  # type: ignore
-        self._txtNotes.textChanged.connect(self._onContentChanged)  # type: ignore
+
         self._saveButton.clicked.connect(self._onSave)  # type: ignore
         self._revertButton.clicked.connect(self._onRevert)  # type: ignore
-        self._generateButton.clicked.connect(self._onGenerate)  # type: ignore
+
+        if self._generateButton is not None:
+            self._generateButton.clicked.connect(self._onGenerate)  # type: ignore
+
+        self._saveButton.setEnabled(False)  # type: ignore
+        self._revertButton.setEnabled(False)  # type: ignore
+
+    # ------------------------------------------------------------
+    # Sidecar load / clear
+    # ------------------------------------------------------------
 
     def loadSidecar(self, sidecar: SidecarData):
         """
         Load sidecar data into the editor.
-
-        Args:
-            sidecar: SidecarData to edit
+        Additionally reads the input-sidecar json and fills RAW fields.
         """
         self._currentSidecar = sidecar
 
-        # Block signals while loading to avoid triggering change detection
+        # Try to find & read the input-sidecar json
+        inputData: Dict[str, Any] = {}
+        try:
+            inputSidecarPath = self._findInputSidecarPath(getattr(sidecar, "imagePath", ""))
+            if inputSidecarPath:
+                inputData = self._readJson(inputSidecarPath)
+        except Exception:
+            inputData = {}
+
+        # Fill RAW fields from input-sidecar
+        # - Subject raw: prefer positive.description
+        # - Pose raw: positive.pose.raw
+        # - Clothing raw: positive.clothing.raw
+        # - Lingerie raw: positive.lingerie.raw
+        # - Setting raw: positive.location.raw
+        # - Composition raw: positive.camera.raw
+        rawSubject = self._get(inputData, "positive.description") or ""
+        rawPose = self._get(inputData, "positive.pose.raw") or ""
+        rawClothing = self._get(inputData, "positive.clothing.raw") or ""
+        rawLingerie = self._get(inputData, "positive.lingerie.raw") or ""
+        rawSetting = self._get(inputData, "positive.location.raw") or ""
+        rawComposition = self._get(inputData, "positive.camera.raw") or ""
+
+        # Block signals while populating
+        self._blockAll(True)
+
+        # Raw fields (this is what you asked for)
+        self._subjectRaw.setPlainText(rawSubject)
+        self._poseRaw.setPlainText(rawPose)
+        self._clothingRaw.setPlainText(rawClothing)
+        self._lingerieRaw.setPlainText(rawLingerie)
+        self._settingRaw.setPlainText(rawSetting)
+        self._compositionRaw.setPlainText(rawComposition)
+
+        # Prompt fields: leave as-is (blank by default); later we’ll bind these to prompt json.
+        # Negative/status/notes: also leave as-is for now.
+
+        self._blockAll(False)
+
         self._saveButton.setEnabled(True)  # type: ignore
         self._revertButton.setEnabled(False)  # type: ignore
 
     def clear(self):
         """Clear the editor."""
         self._currentSidecar = None
-        self._promptEdit.clear()  # type: ignore
-        self._negPromptEdit.clear()  # type: ignore
+
+        self._blockAll(True)
+
+        for w in (
+            self._subjectPrompt, self._subjectRaw,
+            self._posePrompt, self._poseRaw,
+            self._clothingPrompt, self._clothingRaw,
+            self._lingeriePrompt, self._lingerieRaw,
+            self._settingPrompt, self._settingRaw,
+            self._compositionPrompt, self._compositionRaw,
+            self._negPromptEdit, self._negStyleEdit,
+            self._txtNotes,
+        ):
+            w.clear()
+
+        self._chkLocked.setChecked(False)
+        self._chkReviewed.setChecked(False)
+
+        self._blockAll(False)
+
         self._saveButton.setEnabled(False)  # type: ignore
         self._revertButton.setEnabled(False)  # type: ignore
+
+    # ------------------------------------------------------------
+    # Save / revert (kept minimal for now)
+    # ------------------------------------------------------------
 
     def saveCurrentSidecar(self) -> bool:
         """Save the currently loaded sidecar. Returns True if saved."""
         if not self._currentSidecar:
             return False
 
-        # Whatever your current “collect values from UI” logic is:
-        self._currentSidecar.prompt = self._promptEdit.toPlainText()  # type: ignore
-        self._currentSidecar.negativePrompt = self._negPromptEdit.toPlainText()  # type: ignore
-
         try:
+            # For now we are NOT writing raw fields into the prompt-sidecar object yet.
+            # Next step will map UI -> SidecarData structured fields.
             saveSidecar(self._currentSidecar, createBackup=True)
             self._revertButton.setEnabled(False)  # type: ignore
-            self.sidecarSaved.emit(self._currentSidecar.imagePath)
+            self.sidecarSaved.emit(getattr(self._currentSidecar, "imagePath", ""))
             return True
         except Exception as e:
             QMessageBox.critical(self, "Save Error", f"Failed to save sidecar:\n{e}")
             return False
 
     def hasUnsavedChanges(self) -> bool:
-        """
-        Check if there are unsaved changes.
-
-        Returns:
-            True if there are unsaved changes
-        """
         return self._revertButton.isEnabled()  # type: ignore
 
+    # ------------------------------------------------------------
+    # Events
+    # ------------------------------------------------------------
+
     def _onContentChanged(self):
-        """Handle content changes."""
         if self._currentSidecar:
-            self._revertButton.setEnabled(True)
-    
+            self._revertButton.setEnabled(True)  # type: ignore
+
     def _onGenerate(self):
-        """Handle generate button click."""
-        QMessageBox.information(self, "Generate", "This would trigger image generation based on prompt text entered here.")
+        QMessageBox.information(self, "Generate", "Generate is not wired yet.")
 
     def _onSave(self):
-        """Handle save button click."""
         self.saveCurrentSidecar()
 
     def _onRevert(self):
-        """Handle revert button click."""
         if not self._currentSidecar:
             return
 
@@ -200,10 +260,68 @@ class EditorPanel(QWidget):
             self,
             "Revert Changes",
             "Discard all unsaved changes?",
-            QMessageBox.Yes | QMessageBox.No, # type: ignore
-            QMessageBox.No, # type: ignore
+            QMessageBox.Yes | QMessageBox.No,  # type: ignore
+            QMessageBox.No,  # type: ignore
         )
+        if reply == QMessageBox.Yes:  # type: ignore
+            self.loadSidecar(self._currentSidecar)
 
-        if reply == QMessageBox.Yes: # type: ignore
-            # Reload the original data
-            self.loadSidecar(self._currentSidecar) # type: ignore
+    # ------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------
+
+    def _blockAll(self, blocked: bool):
+        for w in (
+            self._subjectPrompt, self._subjectRaw,
+            self._posePrompt, self._poseRaw,
+            self._clothingPrompt, self._clothingRaw,
+            self._lingeriePrompt, self._lingerieRaw,
+            self._settingPrompt, self._settingRaw,
+            self._compositionPrompt, self._compositionRaw,
+            self._negPromptEdit, self._negStyleEdit,
+            self._txtNotes,
+        ):
+            w.blockSignals(blocked)  # type: ignore
+        self._chkLocked.blockSignals(blocked)  # type: ignore
+        self._chkReviewed.blockSignals(blocked)  # type: ignore
+
+    def _findInputSidecarPath(self, imagePath: str) -> Optional[Path]:
+        """
+        Try a few common patterns:
+        - same folder: input.prompt.json
+        - alongside image: <stem>.prompt.json
+        - alongside image: <filename>.prompt.json (e.g. clothed-142.png.prompt.json)
+        """
+        if not imagePath:
+            return None
+
+        p = Path(imagePath)
+        candidates = [
+            p.parent / "input.prompt.json",
+            p.with_suffix(".prompt.json"),
+            Path(str(p) + ".prompt.json"),
+        ]
+        for c in candidates:
+            if c.exists() and c.is_file():
+                return c
+        return None
+
+    def _readJson(self, path: Path) -> Dict[str, Any]:
+        try:
+            txt = path.read_text(encoding="utf-8")
+            obj = json.loads(txt)
+            return obj if isinstance(obj, dict) else {}
+        except Exception:
+            return {}
+
+    def _get(self, obj: Dict[str, Any], dottedPath: str) -> Any:
+        """
+        Safe dotted getter for dicts.
+        Example: _get(data, "positive.pose.raw")
+        """
+        cur: Any = obj
+        for part in dottedPath.split("."):
+            if not isinstance(cur, dict):
+                return None
+            cur = cur.get(part)
+        return cur

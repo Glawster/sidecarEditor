@@ -53,12 +53,6 @@ class MainWindow(QMainWindow):
         # Show welcome message after window is shown
         QTimer.singleShot(10, self._showWelcome)
 
-    def _debugSizes(self):
-        """Debug method to print window and widget sizes."""
-        cw = self.centralWidget()
-        print("AFTER SHOW  MW:", self.geometry())
-        print("AFTER SHOW  CW:", cw.geometry(), "layout:", type(cw.layout()).__name__ if cw.layout() else None)
-
     def _setupUi(self):
         """Set up the user interface by loading from .ui file, then inject dynamic panels."""
         uiFilePath = Path(__file__).parent / "mainwindow.ui"
@@ -114,10 +108,6 @@ class MainWindow(QMainWindow):
         centralLayout.setStretch(0, 0)  # top bar
         centralLayout.setStretch(1, 1)  # main content fills
 
-        #print("central has layout:", type(loadedCentral.layout()).__name__ if loadedCentral.layout() else None)
-        #print("topBar geo:", self._topBarWidget.geometry(), "policy:", self._topBarWidget.sizePolicy())
-        #print("mainContent geo:", self._mainContentWidget.geometry(), "policy:", self._mainContentWidget.sizePolicy())
-
         # top bar controls
         self._btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")
         self._btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")
@@ -144,9 +134,6 @@ class MainWindow(QMainWindow):
         mainLayout = self._mainContentWidget.layout()
         if mainLayout is None:
             mainLayout = QVBoxLayout(self._mainContentWidget)
-        #print("mainLayout:", type(mainLayout).__name__,
-        #    "sizeConstraint:", mainLayout.sizeConstraint(),
-        #    "alignment:", int(mainLayout.alignment()))
 
         mainLayout.setContentsMargins(0, 0, 0, 0)
         mainLayout.setSpacing(6)
@@ -203,12 +190,6 @@ class MainWindow(QMainWindow):
         # add the sidecar frame to the main content layout
         mainLayout.addWidget(self._sidecarFrame, 1)
 
-        #print("policies:",
-        #    self._thumbnailList.sizePolicy(),
-        #    self._inputPreview.sizePolicy(),
-        #    self._editorPanel.sizePolicy(),
-        #    self._outputPreview.sizePolicy())
-
         # --- bottom-right button bar ---
         self._buttonBar = ButtonBar(self._mainContentWidget)
         self._buttonBar.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed) # type: ignore
@@ -222,13 +203,9 @@ class MainWindow(QMainWindow):
         bottomRow.addWidget(self._buttonBar)
 
         mainLayout.addLayout(bottomRow, 0)
-        #cw = self.centralWidget()
-        #print("centralWidget:", cw, "layout:", type(cw.layout()).__name__ if cw.layout() else None)
-        #print("cw geo:", cw.geometry(), "mw geo:", self.geometry())
 
         if self.statusBar():
             self.statusBar().showMessage("Ready")
-        #print("central layout after setup:", type(self.centralWidget().layout()).__name__ if self.centralWidget().layout() else None)
 
 
     def _connectSignals(self):
@@ -400,8 +377,6 @@ class MainWindow(QMainWindow):
 
         # Resolve output image path (same relative file under output root)
         outputPath = None
-        print("inputRoot:", self._inputRoot)
-        print("outputRoot:", self._outputRoot)
 
         if self._outputRoot and self._inputRoot:
             outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
@@ -411,14 +386,7 @@ class MainWindow(QMainWindow):
         # - right preview: output only (if not found, show input again as a fallback)
         self._inputPreview.setImage(imagePath) # type: ignore
 
-        print(f"Resolved output path: {outputPath} for input: {imagePath}")
         outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
-
-        if not outputPath:
-            possibles = self._outputResolver.getPossibleOutputs(imagePath, self._inputRoot)
-            print("no output for:", imagePath)
-            print("possible outputs:", possibles[:10])
-
 
         if outputPath:
             self._outputPreview.setImage(outputPath) # type: ignore
