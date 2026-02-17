@@ -400,6 +400,9 @@ class MainWindow(QMainWindow):
 
         # Resolve output image path (same relative file under output root)
         outputPath = None
+        print("inputRoot:", self._inputRoot)
+        print("outputRoot:", self._outputRoot)
+
         if self._outputRoot and self._inputRoot:
             outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
 
@@ -408,10 +411,19 @@ class MainWindow(QMainWindow):
         # - right preview: output only (if not found, show input again as a fallback)
         self._inputPreview.setImage(imagePath) # type: ignore
 
+        print(f"Resolved output path: {outputPath} for input: {imagePath}")
+        outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
+
+        if not outputPath:
+            possibles = self._outputResolver.getPossibleOutputs(imagePath, self._inputRoot)
+            print("no output for:", imagePath)
+            print("possible outputs:", possibles[:10])
+
+
         if outputPath:
             self._outputPreview.setImage(outputPath) # type: ignore
         else:
-            self._outputPreview.setImage(imagePath)  # type: ignore
+            self._outputPreview.setImage(None)  # type: ignore
 
         # Status
         status = f"Loaded: {os.path.basename(imagePath)}"

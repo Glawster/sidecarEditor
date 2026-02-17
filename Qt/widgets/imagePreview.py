@@ -96,8 +96,9 @@ class ImagePreview(QWidget):
             # (e.g. "input/image.png" or "output/image.png") plus the actual filename, 
             # to help distinguish between input and output images in the status label
             parts = Path(self._imagePath).parts
+            # how do i os.join parts -3, -2, -1? if parts is long enough, otherwise just use the filename
             if len(parts) >= 3:
-                filename = os.path.join(parts[-3], parts[-1])
+                filename = os.path.join(parts[-3], parts[-2], parts[-1])
             elif len(parts) == 2:
                 filename = os.path.join(parts[-2], parts[-1])
             else:

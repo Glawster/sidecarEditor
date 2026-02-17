@@ -1,172 +1,103 @@
 """
 Output image resolution logic.
-Attempts to find generated/output images corresponding to original images.
+
+Requirements:
+- Input images may live in inputRoot or any subfolder.
+- Output images are expected to be inside outputRoot (often flat, may contain subfolders).
+- Output filename may add arbitrary prefix/suffix around the input stem:
+    e.g. fixed_clothed-142_00001_.png
+- Avoid substring collisions:
+    "clothed-15" must NOT match "clothed-152"
+- If multiple possible outputs exist, pick the newest (mtime).
+
 No Qt dependencies - pure business logic.
 """
 
-import os
+from __future__ import annotations
+
+import re
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Set
 
 
 class OutputResolver:
     """Resolves original images to their generated output images."""
 
-    def __init__(self, outputRoot: Optional[str] = None):
-        """
-        Initialize the output resolver.
+    _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
 
-        Args:
-            outputRoot: Root directory where output images are stored
-        """
-        self.outputRoot = Path(outputRoot) if outputRoot else None
+    def __init__(self, outputRoot: Optional[str] = None):
+        self.outputRoot: Optional[Path] = Path(outputRoot) if outputRoot else None
 
     def setOutputRoot(self, outputRoot: str):
-        """
-        Set or update the output root directory.
-
-        Args:
-            outputRoot: Root directory where output images are stored
-        """
         self.outputRoot = Path(outputRoot) if outputRoot else None
 
-    def resolveOutput(
-        self, originalPath: str, inputRoot: Optional[str] = None
-    ) -> Optional[str]:
-        """
-        Attempt to find the output image for an original image.
+    def resolveOutput(self, originalPath: str, inputRoot: Optional[str] = None) -> Optional[str]:
+        candidates = self.getPossibleOutputs(originalPath, inputRoot=inputRoot)
+        return candidates[0] if candidates else None
 
-        Resolution strategy:
-        1. Try same relative path from inputRoot to outputRoot
-        2. Try filename match in outputRoot
-        3. Try stem-prefix match (e.g., "image" matches "image_001.png")
-
-        Args:
-            originalPath: Path to the original image
-            inputRoot: Root directory of input images (for relative path calculation)
-
-        Returns:
-            Path to output image if found, None otherwise
-        """
-        if not self.outputRoot or not self.outputRoot.exists():
-            return None
-
-        original = Path(originalPath)
-
-        # Strategy 1: Same relative path
-        if inputRoot:
-            try:
-                relPath = original.relative_to(inputRoot)
-                outputPath = self.outputRoot / relPath
-                if outputPath.exists():
-                    return str(outputPath)
-            except (ValueError, OSError):
-                pass
-
-        # Strategy 2: Filename match
-        filenameMatch = self._findByFilename(original.name)
-        if filenameMatch:
-            return filenameMatch
-
-        # Strategy 3: Stem-prefix match
-        stemMatch = self._findByStemPrefix(original.stem)
-        if stemMatch:
-            return stemMatch
-
-        return None
-
-    def _findByFilename(self, filename: str) -> Optional[str]:
-        """
-        Find a file with exact filename match in output_root.
-
-        Args:
-            filename: Filename to search for
-
-        Returns:
-            Path to matching file if found, None otherwise
-        """
-        if not self.outputRoot:
-            return None
-
-        for filePath in self.outputRoot.rglob(filename):
-            if filePath.is_file():
-                return str(filePath)
-
-        return None
-
-    def _findByStemPrefix(self, stem: str) -> Optional[str]:
-        """
-        Find a file whose stem starts with the given stem.
-        E.g., "image" matches "image_001.png", "image_final.jpg"
-
-        Args:
-            stem: Filename stem to match as prefix
-
-        Returns:
-            Path to first matching file if found, None otherwise
-        """
-        if not self.outputRoot:
-            return None
-
-        # Common image extensions to check
-        extensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
-
-        for filePath in self.outputRoot.rglob("*"):
-            if filePath.is_file():
-                if (
-                    filePath.stem.startswith(stem)
-                    and filePath.suffix.lower() in extensions
-                ):
-                    return str(filePath)
-
-        return None
-
-    def getPossibleOutputs(
-        self, originalPath: str, inputRoot: Optional[str] = None
-    ) -> List[str]:
-        """
-        Get all possible output images for an original image.
-        Useful for debugging or presenting multiple options to the user.
-
-        Args:
-            originalPath: Path to the original image
-            inputRoot: Root directory of input images
-
-        Returns:
-            List of possible output image paths
-        """
-        if not self.outputRoot or not self.outputRoot.exists():
+    def getPossibleOutputs(self, originalPath: str, inputRoot: Optional[str] = None) -> List[str]:
+        outputRoot = self._validatedOutputRoot()
+        if outputRoot is None:
             return []
 
         original = Path(originalPath)
-        results = []
+        filename = original.name
+        stem = original.stem
 
-        # Collect all candidates
-        candidates = set()
+        candidates: Set[Path] = set()
 
-        # From relative path
-        if inputRoot:
-            try:
-                relPath = original.relative_to(inputRoot)
-                outputPath = self.outputRoot / relPath
-                if outputPath.exists():
-                    candidates.add(str(outputPath))
-            except (ValueError, OSError):
-                pass
+        # 1) flat direct: outputRoot / original filename
+        direct = outputRoot / filename
+        if self._isValidImageFile(direct):
+            candidates.add(direct)
 
-        # From filename matches
-        for filePath in self.outputRoot.rglob(original.name):
-            if filePath.is_file():
-                candidates.add(str(filePath))
+        # 2) exact filename anywhere
+        for fp in outputRoot.rglob(filename):
+            if self._isValidImageFile(fp):
+                candidates.add(fp)
 
-        # From stem-prefix matches
-        extensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"]
-        for filePath in self.outputRoot.rglob("*"):
-            if filePath.is_file():
-                if (
-                    filePath.stem.startswith(original.stem)
-                    and filePath.suffix.lower() in extensions
-                ):
-                    candidates.add(str(filePath))
+        # 3) boundary-aware stem match anywhere (prefix/suffix allowed, but no collisions)
+        # e.g. matches "..._clothed-142_..." but not "..._clothed-152_..." for "clothed-15"
+        if stem:
+            pattern = self._buildStemPattern(stem)
+            for fp in outputRoot.rglob("*"):
+                if not self._isValidImageFile(fp):
+                    continue
+                if pattern.search(fp.stem):
+                    candidates.add(fp)
 
-        return sorted(list(candidates))
+        ordered = sorted(candidates, key=self._safeMtime, reverse=True)
+        return [str(p) for p in ordered]
+
+    # ------------------------------------------------------------
+    # helpers
+    # ------------------------------------------------------------
+
+    def _validatedOutputRoot(self) -> Optional[Path]:
+        if not self.outputRoot:
+            return None
+        if not self.outputRoot.exists() or not self.outputRoot.is_dir():
+            return None
+        return self.outputRoot
+
+    def _isValidImageFile(self, path: Path) -> bool:
+        try:
+            return path.is_file() and path.suffix.lower() in self._IMAGE_EXTS
+        except OSError:
+            return False
+
+    def _safeMtime(self, path: Path) -> float:
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            return 0.0
+
+    def _buildStemPattern(self, stem: str) -> re.Pattern:
+        """
+        Build a regex that matches stem as a token, not as a substring of a longer token.
+
+        We treat "token chars" as [A-Za-z0-9-] (hyphen is part of your stems).
+        Boundaries are start/end or any char NOT in that set (underscore counts as boundary).
+        """
+        escaped = re.escape(stem)
+        return re.compile(rf"(^|[^A-Za-z0-9-]){escaped}($|[^A-Za-z0-9-])")
