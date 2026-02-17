@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTextEdit,
     QMessageBox,
+    QCheckBox,
 )
 from PySide6.QtCore import QFile, Signal
 from PySide6.QtUiTools import QUiLoader
@@ -52,20 +53,55 @@ class EditorPanel(QWidget):
         layout.addWidget(self.ui)
 
         # Grab widgets by objectName (must match Qt Designer objectName)
-        self._promptEdit: QTextEdit = self.ui.findChild(QTextEdit, "txtPrompt")  # type: ignore
+        self._subjectPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtSubjectPrompt")  # type: ignore
+        self._subjectRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtSubjectRaw")  # type: ignore
+        self._posePrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtPosePrompt")  # type: ignore
+        self._poseRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtPoseRaw")  # type: ignore
+        self._clothingPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtClothingPrompt")  # type: ignore
+        self._clothingRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtClothingRaw")  # type: ignore
+        self._lingeriePrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtLingeriePrompt")  # type: ignore
+        self._lingerieRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtLingerieRaw")  # type: ignore
+        self._settingPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtSettingPrompt")  # type: ignore
+        self._settingRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtSettingRaw")  # type: ignore
+        self._compositionPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtCompositionPrompt")  # type: ignore
+        self._compositionRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtCompositionRaw")  # type: ignore
+
+        # Negative
         self._negPromptEdit: QTextEdit = self.ui.findChild(QTextEdit, "txtNegativePrompt")  # type: ignore
+        self._negStyleEdit: QTextEdit = self.ui.findChild(QTextEdit, "txtNegativeStyle")  # type: ignore
+
+        # Status
+        self._chkLocked: QCheckBox = self.ui.findChild(QCheckBox, "chkLocked")  # type: ignore
+        self._chkReviewed: QCheckBox = self.ui.findChild(QCheckBox, "chkReviewed")  # type: ignore
+        self._txtNotes: QTextEdit = self.ui.findChild(QTextEdit, "txtNotes")  # type: ignore
+
+        self._generateButton: QPushButton = self.ui.findChild(QPushButton, "btnGenerate")  # type: ignore
         self._saveButton: QPushButton = self.ui.findChild(QPushButton, "btnSave")  # type: ignore
         self._revertButton: QPushButton = self.ui.findChild(QPushButton, "btnRevert")  # type: ignore
-        self._tagsLabel: QLabel = self.ui.findChild(QLabel, "lblTags")  # type: ignore
 
         missing = [
             name
             for name, w in {
-                "txtPrompt": self._promptEdit,
+                "txtSubjectPrompt": self._subjectPrompt,
+                "txtSubjectRaw": self._subjectRaw,
+                "txtPosePrompt": self._posePrompt,
+                "txtPoseRaw": self._poseRaw,
+                "txtClothingPrompt": self._clothingPrompt,
+                "txtClothingRaw": self._clothingRaw,
+                "txtLingeriePrompt": self._lingeriePrompt,
+                "txtLingerieRaw": self._lingerieRaw,
+                "txtSettingPrompt": self._settingPrompt,
+                "txtSettingRaw": self._settingRaw,
+                "txtCompositionPrompt": self._compositionPrompt,
+                "txtCompositionRaw": self._compositionRaw,
                 "txtNegativePrompt": self._negPromptEdit,
+                "txtNegativeStyle": self._negStyleEdit,
+                "chkLocked": self._chkLocked,
+                "chkReviewed": self._chkReviewed,
+                "txtNotes": self._txtNotes,
+                "btnGenerate": self._generateButton,
                 "btnSave": self._saveButton,
                 "btnRevert": self._revertButton,
-                "lblTags": self._tagsLabel,
             }.items()
             if w is None
         ]
@@ -75,10 +111,24 @@ class EditorPanel(QWidget):
             )
 
         # Wire signals (same behaviour as before)
+        self._subjectPrompt.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._subjectRaw.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._posePrompt.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._poseRaw.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._clothingPrompt.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._clothingRaw.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._lingeriePrompt.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._lingerieRaw.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._settingPrompt.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._settingRaw.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._compositionPrompt.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._compositionRaw.textChanged.connect(self._onContentChanged) # type: ignore
+        self._chkLocked.stateChanged.connect(self._onContentChanged)  # type: ignore
+        self._chkReviewed.stateChanged.connect(self._onContentChanged)  # type: ignore
+        self._txtNotes.textChanged.connect(self._onContentChanged)  # type: ignore
         self._saveButton.clicked.connect(self._onSave)  # type: ignore
         self._revertButton.clicked.connect(self._onRevert)  # type: ignore
-        self._promptEdit.textChanged.connect(self._onContentChanged)  # type: ignore
-        self._negPromptEdit.textChanged.connect(self._onContentChanged)  # type: ignore
+        self._generateButton.clicked.connect(self._onGenerate)  # type: ignore
 
     def loadSidecar(self, sidecar: SidecarData):
         """
@@ -90,15 +140,6 @@ class EditorPanel(QWidget):
         self._currentSidecar = sidecar
 
         # Block signals while loading to avoid triggering change detection
-        self._promptEdit.blockSignals(True)  # type: ignore
-        self._negPromptEdit.blockSignals(True)  # type: ignore
-
-        self._promptEdit.setPlainText(sidecar.prompt)  # type: ignore
-        self._negPromptEdit.setPlainText(sidecar.negativePrompt)  # type: ignore
-
-        self._promptEdit.blockSignals(False)  # type: ignore
-        self._negPromptEdit.blockSignals(False)  # type: ignore
-
         self._saveButton.setEnabled(True)  # type: ignore
         self._revertButton.setEnabled(False)  # type: ignore
 
@@ -141,6 +182,10 @@ class EditorPanel(QWidget):
         """Handle content changes."""
         if self._currentSidecar:
             self._revertButton.setEnabled(True)
+    
+    def _onGenerate(self):
+        """Handle generate button click."""
+        QMessageBox.information(self, "Generate", "This would trigger image generation based on prompt text entered here.")
 
     def _onSave(self):
         """Handle save button click."""
