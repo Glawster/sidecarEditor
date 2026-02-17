@@ -23,7 +23,7 @@ class InputPreview(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._originalPath: Optional[str] = None
+        self._inputPath: Optional[str] = None
         self._outputPath: Optional[str] = None
         self._showingOriginal = True
 
@@ -44,12 +44,10 @@ class InputPreview(QWidget):
         if root is None:
             raise RuntimeError(f"Failed to load UI file: {uiFilePath}")
 
-        self._showOutputButton = root.findChild(QPushButton, "btnShowOutput")
         self._statusLabel = root.findChild(QLabel, "lblStatus")
         self._imageLabel = root.findChild(QLabel, "lblImage")
 
         missing = [name for name, w in {
-            "btnShowOutput": self._showOutputButton,
             "lblStatus": self._statusLabel,
             "lblImage": self._imageLabel,
         }.items() if w is None]
@@ -66,28 +64,20 @@ class InputPreview(QWidget):
         self._showOutputButton.clicked.connect(self._onToggle) # type: ignore
         self._showOutputButton.setEnabled(False) # type: ignore
 
-    def setImages(self, originalPath: str, outputPath: Optional[str] = None):
+    def setImages(self, inputPath: str, outputPath: Optional[str] = None):
         """
         Set the images to display.
 
         Args:
-            originalPath: Path to original image
+            inputPath: Path to input image
             outputPath: Path to output image (optional)
         """
-        self._originalPath = originalPath
+        self._inputPath = inputPath
         self._outputPath = outputPath
         self._showingOriginal = True
 
-        # Update toggle button state
-        if outputPath:
-            self._showOutputButton.setEnabled(True) # type: ignore
-            self._showOutputButton.setText("Show Output") # type: ignore
-        else:
-            self._showOutputButton.setEnabled(False) # type: ignore
-            self._showOutputButton.setText("Show Output (Not Available)") # type: ignore
-
         # Display the original image
-        self._displayImage(originalPath) # type: ignore
+        self._displayImage(inputPath) # type: ignore
         self._updateStatus() # type: ignore
 
     def _displayImage(self, imagePath: str):
@@ -118,7 +108,7 @@ class InputPreview(QWidget):
         self._showingOriginal = not self._showingOriginal
 
         if self._showingOriginal:
-            self._displayImage(self._originalPath) # type: ignore
+            self._displayImage(self._inputPath) # type: ignore
             self._showOutputButton.setText("Show Output")  # type: ignore
         else:
             self._displayImage(self._outputPath) # type: ignore
@@ -131,7 +121,7 @@ class InputPreview(QWidget):
         import os
 
         if self._showingOriginal:
-            status = f"Original: {os.path.basename(self._originalPath)}" # type: ignore
+            status = f"Original: {os.path.basename(self._inputPath)}" # type: ignore
         else:
             status = f"Output: {os.path.basename(self._outputPath)}" # type: ignore
 
@@ -139,7 +129,7 @@ class InputPreview(QWidget):
 
     def clear(self):
         """Clear the displayed image."""
-        self._originalPath = None
+        self._inputPath = None
         self._outputPath = None
         self._showingOriginal = True
         self._imageLabel.clear()  # type: ignore
@@ -153,10 +143,10 @@ class InputPreview(QWidget):
         super().resizeEvent(event)
 
         # Re-display current image at new size
-        if self._originalPath:
+        if self._inputPath:
             currentPath = (
                 self._outputPath
                 if not self._showingOriginal and self._outputPath
-                else self._originalPath
+                else self._inputPath
             )
             self._displayImage(currentPath)

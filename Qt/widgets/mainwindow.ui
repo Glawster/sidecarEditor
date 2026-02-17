@@ -57,6 +57,12 @@
         </item>
         <item row="2" column="1">
          <widget class="QLineEdit" name="txtOutputFolder">
+          <property name="minimumSize">
+           <size>
+            <width>350</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="maximumSize">
            <size>
             <width>350</width>
@@ -77,7 +83,7 @@
           <property name="minimumSize">
            <size>
             <width>350</width>
-            <height>0</height>
+            <height>30</height>
            </size>
           </property>
           <property name="maximumSize">
@@ -90,6 +96,12 @@
         </item>
         <item row="2" column="2">
          <widget class="QPushButton" name="btnSetOutput">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="text">
            <string>Select Output Folder</string>
           </property>
@@ -97,6 +109,12 @@
         </item>
         <item row="1" column="2">
          <widget class="QPushButton" name="btnSetInput">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="text">
            <string>Select Input Folder</string>
           </property>

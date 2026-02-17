@@ -29,9 +29,8 @@ from src.sidecarCore import scanImages, loadSidecar
 from src.outputResolver import OutputResolver
 
 from Qt.widgets.thumbnailList import ThumbnailList
-from Qt.widgets.inputPreview import InputPreview, InputPreview
+from Qt.widgets.imagePreview import ImagePreview
 from Qt.widgets.editorPanel import EditorPanel
-from Qt.widgets.outputPreview import OutputPreview
 from Qt.widgets.buttonBar import ButtonBar
 
 
@@ -163,25 +162,38 @@ class MainWindow(QMainWindow):
         self._thumbnailList.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
         self._sidecarFrame.addWidget(self._thumbnailList)
 
-        # split the sidecar frame the right side becomes the editor frame (with input preview, editor panel, output preview)
-        self._editorFrame = QSplitter(Qt.Horizontal, self._sidecarFrame) # type: ignore
-        self._editorFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        # split the sidecar frame: right side becomes the editor region
+        # layout: [EditorPanel | (InputPreview above OutputPreview)]
+        self._editorFrame = QSplitter(Qt.Horizontal, self._sidecarFrame)  # type: ignore
+        self._editorFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
 
-        self._inputPreview = InputPreview()
-        self._inputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
-        self._editorFrame.addWidget(self._inputPreview)
-
+        # left: editor panel (now long, so give it the main width)
         self._editorPanel = EditorPanel()
-        self._editorPanel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        self._editorPanel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
         self._editorFrame.addWidget(self._editorPanel)
 
-        self._outputPreview = OutputPreview()
-        self._outputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
-        self._editorFrame.addWidget(self._outputPreview)
+        # right: previews stacked vertically
+        self._previewFrame = QSplitter(Qt.Vertical, self._editorFrame)  # type: ignore
+        self._previewFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
 
-        self._editorFrame.setStretchFactor(0, 1)
-        self._editorFrame.setStretchFactor(1, 2)
-        self._editorFrame.setStretchFactor(2, 1)
+        self._inputPreview = ImagePreview()
+        self._inputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+        self._previewFrame.addWidget(self._inputPreview)
+
+        self._outputPreview = ImagePreview()
+        self._outputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+        self._previewFrame.addWidget(self._outputPreview)
+
+        # add the preview frame to the horizontal editor frame
+        self._editorFrame.addWidget(self._previewFrame)
+
+        # stretch: editor panel wider than preview column
+        self._editorFrame.setStretchFactor(0, 3)
+        self._editorFrame.setStretchFactor(1, 1)
+
+        # stretch: preview stack roughly equal heights
+        self._previewFrame.setStretchFactor(0, 1)
+        self._previewFrame.setStretchFactor(1, 1)
 
         # add the editor frame to the sidecar frame (right side)
         self._sidecarFrame.addWidget(self._editorFrame)
@@ -394,12 +406,12 @@ class MainWindow(QMainWindow):
         # Update previews:
         # - left preview: input only
         # - right preview: output only (if not found, show input again as a fallback)
-        self._inputPreview.setImages(imagePath, None)
+        self._inputPreview.setImage(imagePath) # type: ignore
 
         if outputPath:
-            self._outputPreview.setImages(outputPath, None)
+            self._outputPreview.setImage(outputPath) # type: ignore
         else:
-            self._outputPreview.setImages(imagePath, None)
+            self._outputPreview.setImage(imagePath)  # type: ignore
 
         # Status
         status = f"Loaded: {os.path.basename(imagePath)}"
