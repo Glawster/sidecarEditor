@@ -6,20 +6,23 @@ Loads UI from Qt Designer .ui file.
 
 import os
 from pathlib import Path
+from typing import Optional
+
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QSplitter,
     QFileDialog,
     QMessageBox,
-    QLabel,
+    QLineEdit,
     QPushButton,
+    QSizePolicy,
 )
 from PySide6.QtCore import Qt, QTimer, QFile
 from PySide6.QtGui import QAction
 from PySide6.QtUiTools import QUiLoader
-from typing import Optional
 
 import src.sidecarConfig as sidecarConfig
 from src.sidecarCore import scanImages, loadSidecar
@@ -28,13 +31,13 @@ from src.outputResolver import OutputResolver
 from Qt.widgets.thumbnailList import ThumbnailList
 from Qt.widgets.imagePreview import ImagePreview
 from Qt.widgets.editorPanel import EditorPanel
+from Qt.widgets.buttonBar import ButtonBar
 
 
 class MainWindow(QMainWindow):
     """Main window for the Sidecar Editor application."""
 
     def __init__(self):
-
         super().__init__()
 
         # Initialize components
@@ -48,178 +51,237 @@ class MainWindow(QMainWindow):
         self._restoreState()
 
         # Show welcome message after window is shown
-        QTimer.singleShot(100, self._showWelcome)
+        QTimer.singleShot(10, self._showWelcome)
 
     def _setupUi(self):
-        """Set up the user interface by loading from .ui file."""
-        # Load UI from .ui file
+        """Set up the user interface by loading from .ui file, then inject dynamic panels."""
         uiFilePath = Path(__file__).parent / "mainwindow.ui"
 
-        # Create QUiLoader and load the .ui file
         loader = QUiLoader()
         uiFile = QFile(str(uiFilePath))
-        if not uiFile.open(QFile.ReadOnly):
+        if not uiFile.open(QFile.ReadOnly):  # type: ignore
             raise RuntimeError(f"Failed to open UI file: {uiFilePath}")
 
-        # Load the UI - this creates a QMainWindow with all its properties
-        # Keep a reference to prevent garbage collection of actions
         self._loadedWindow = loader.load(uiFile, None)
         uiFile.close()
 
-        # Copy window properties from loaded window
+        if self._loadedWindow is None:
+            raise RuntimeError(f"Failed to load UI file: {uiFilePath}")
+
+        loadedCentral = self._loadedWindow.centralWidget()  # type: ignore
+        if loadedCentral is None:
+            raise RuntimeError("Loaded UI has no central widget")
+
+        # window basics
         self.setWindowTitle(self._loadedWindow.windowTitle())
         self.setGeometry(self._loadedWindow.geometry())
 
-        # Extract the central widget from the loaded window
-        loadedCentral = self._loadedWindow.centralWidget()
-        if not loadedCentral:
-            raise RuntimeError("Loaded UI has no central widget")
+        # reuse UI menubar/statusbar (prevents double menubar)
+        loadedMenuBar = self._loadedWindow.menuBar()  # type: ignore
+        if loadedMenuBar is not None:
+            loadedMenuBar.setParent(self)
+            self.setMenuBar(loadedMenuBar)
 
-        # Extract UI elements from the loaded central widget
-        self._inputLabel = loadedCentral.findChild(QLabel, "lblInputPath")
-        self._outputLabel = loadedCentral.findChild(QLabel, "lblOutputPath")
-        btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")
-        btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")
-        btnExit = loadedCentral.findChild(QPushButton, "btnExit")
+        loadedStatusBar = self._loadedWindow.statusBar()  # type: ignore
+        if loadedStatusBar is not None:
+            loadedStatusBar.setParent(self)
+            self.setStatusBar(loadedStatusBar)
 
-        # Get the main content widget where we'll add the splitters
-        mainContentWidget = loadedCentral.findChild(QWidget, "wgtMainContent")
-
-        # Verify all required widgets were found
-        if not all(
-            [
-                self._inputLabel,
-                self._outputLabel,
-                btnSetInput,
-                btnSetOutput,
-                btnExit,
-                mainContentWidget,
-            ]
-        ):
-            raise RuntimeError("Failed to find all required widgets in UI file")
-
-        # Store button references for signal connections
-        self._btnSetInput = btnSetInput
-        self._btnSetOutput = btnSetOutput
-        self._btnExit = btnExit
-
-        # Create layout for main content widget
-        contentLayout = QVBoxLayout(mainContentWidget)
-        contentLayout.setContentsMargins(0, 0, 0, 0)
-
-        # Create main splitter (horizontal)
-        mainSplitter = QSplitter(Qt.Horizontal)
-
-        # Left panel: Thumbnail list
-        self._thumbnailList = ThumbnailList()
-        # Set minimum width to accommodate 3 thumbnails (100px each + 10px spacing + margins)
-        # 3 * 100px (thumbnails) + 2 * 10px (spacing) + ~30px (margins/scrollbar) = ~350px
-        self._thumbnailList.setMinimumWidth(350)
-        mainSplitter.addWidget(self._thumbnailList)
-
-        # Right panel: Splitter with preview and editor
-        rightSplitter = QSplitter(Qt.Vertical)
-
-        # Image preview
-        self._imagePreview = ImagePreview()
-        rightSplitter.addWidget(self._imagePreview)
-
-        # Editor panel
-        self._editorPanel = EditorPanel()
-        rightSplitter.addWidget(self._editorPanel)
-
-        # Set initial sizes for right splitter
-        rightSplitter.setSizes([400, 300])
-
-        mainSplitter.addWidget(rightSplitter)
-
-        # Set initial sizes for main splitter
-        # Left panel (thumbnails): 350px to fit 3 thumbnails wide
-        # Right panel (preview/editor): remaining space
-        mainSplitter.setSizes([350, 850])
-
-        contentLayout.addWidget(mainSplitter)
-
-        # Set the loaded central widget as our central widget
         self.setCentralWidget(loadedCentral)
 
-        # Get menu actions from the loaded window
-        self._actionSetInput = self._loadedWindow.findChild(QAction, "actionSetInputFolder")
-        self._actionSetOutput = self._loadedWindow.findChild(QAction, "actionSetOutputFolder")
+        # placeholders from UI
+        self._topBarWidget = loadedCentral.findChild(QWidget, "wgtTopBar")
+        self._mainContentWidget = loadedCentral.findChild(QWidget, "wgtMainContent")
+        if self._topBarWidget is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: wgtTopBar")
+        if self._mainContentWidget is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: wgtMainContent")
+
+        centralLayout = loadedCentral.layout()
+        if centralLayout is None:
+            centralLayout = QVBoxLayout(loadedCentral)
+            centralLayout.setContentsMargins(0, 0, 0, 0)
+            centralLayout.setSpacing(6)
+            centralLayout.addWidget(self._topBarWidget)
+            centralLayout.addWidget(self._mainContentWidget)
+
+        centralLayout.setStretch(0, 0)  # top bar
+        centralLayout.setStretch(1, 1)  # main content fills
+
+        # top bar controls
+        self._btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")
+        self._btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")
+        if self._btnSetInput is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: btnSetInput")
+        if self._btnSetOutput is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: btnSetOutput")
+
+        self._txtInputFolder = loadedCentral.findChild(QLineEdit, "txtInputFolder")
+        self._txtOutputFolder = loadedCentral.findChild(QLineEdit, "txtOutputFolder")
+        if self._txtInputFolder is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: txtInputFolder")
+        if self._txtOutputFolder is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: txtOutputFolder")
+
+        # actions
+        self._actionSetInput = self._loadedWindow.findChild(QAction, "actionSetInput")
+        self._actionSetOutput = self._loadedWindow.findChild(QAction, "actionSetOutput")
         self._actionRefresh = self._loadedWindow.findChild(QAction, "actionRefresh")
         self._actionExit = self._loadedWindow.findChild(QAction, "actionExit")
         self._actionAbout = self._loadedWindow.findChild(QAction, "actionAbout")
 
-        # Recreate menu structure with the actions from the loaded window
-        menubar = self.menuBar()
+        # main layout inside wgtMainContent
+        mainLayout = self._mainContentWidget.layout()
+        if mainLayout is None:
+            mainLayout = QVBoxLayout(self._mainContentWidget)
 
-        # File menu
-        fileMenu = menubar.addMenu("&File")
-        fileActions = [
-            self._actionSetInput,
-            self._actionSetOutput,
-            None,  # Separator
-            self._actionRefresh,
-            None,  # Separator
-            self._actionExit
-        ]
-        for action in fileActions:
-            if action is None:
-                fileMenu.addSeparator()
-            elif action:
-                fileMenu.addAction(action)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.setSpacing(6)
 
-        # Help menu
-        helpMenu = menubar.addMenu("&Help")
-        if self._actionAbout:
-            helpMenu.addAction(self._actionAbout)
+        # --- splitters ---
+        # mainContentWidget is split horizontally the bottom half becomes the sidecar frame
+        self._sidecarFrame = QSplitter(Qt.Horizontal, self._mainContentWidget) # type: ignore
+        self._sidecarFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
 
-        # Status bar
-        self.statusBar().showMessage("Ready")
+        # create the thumbnail widget and add to sidecar frame
+        self._thumbnailList = ThumbnailList()
+        self._thumbnailList.setMinimumWidth(380)
+        self._thumbnailList.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) # type: ignore
+        self._sidecarFrame.addWidget(self._thumbnailList)
+
+        # split the sidecar frame: right side becomes the editor region
+        # layout: [EditorPanel | (InputPreview above OutputPreview)]
+        self._editorFrame = QSplitter(Qt.Horizontal, self._sidecarFrame)  # type: ignore
+        self._editorFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+
+        # left: editor panel (now long, so give it the main width)
+        self._editorPanel = EditorPanel()
+        self._editorPanel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+        self._editorFrame.addWidget(self._editorPanel)
+
+        # right: previews stacked vertically
+        self._previewFrame = QSplitter(Qt.Vertical, self._editorFrame)  # type: ignore
+        self._previewFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+
+        self._inputPreview = ImagePreview()
+        self._inputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+        self._previewFrame.addWidget(self._inputPreview)
+
+        self._outputPreview = ImagePreview()
+        self._outputPreview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
+        self._previewFrame.addWidget(self._outputPreview)
+
+        # add the preview frame to the horizontal editor frame
+        self._editorFrame.addWidget(self._previewFrame)
+
+        # stretch: editor panel wider than preview column
+        self._editorFrame.setStretchFactor(0, 3)
+        self._editorFrame.setStretchFactor(1, 1)
+
+        # stretch: preview stack roughly equal heights
+        self._previewFrame.setStretchFactor(0, 1)
+        self._previewFrame.setStretchFactor(1, 1)
+
+        # add the editor frame to the sidecar frame (right side)
+        self._sidecarFrame.addWidget(self._editorFrame)
+        #self._sidecarFrame.setSizes([400, 1000])
+        #self._editorFrame.setSizes([350, 600, 350])
+
+        # add the sidecar frame to the main content layout
+        mainLayout.addWidget(self._sidecarFrame, 1)
+
+        # --- bottom-right button bar ---
+        self._buttonBar = ButtonBar(self._mainContentWidget)
+        self._buttonBar.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed) # type: ignore
+        self._buttonBar.setMinimumHeight(44)
+        self._buttonBar.setMinimumWidth(160)   # helps it not collapse horizontally
+
+        bottomRow = QHBoxLayout()
+        bottomRow.setContentsMargins(0, 0, 0, 0)
+        bottomRow.setSpacing(6)
+        bottomRow.addStretch(1)
+        bottomRow.addWidget(self._buttonBar)
+
+        mainLayout.addLayout(bottomRow, 0)
+
+        if self.statusBar():
+            self.statusBar().showMessage("Ready")
+
 
     def _connectSignals(self):
         """Connect UI signals to slots."""
-        # Connect button signals
-        self._btnSetInput.clicked.connect(self._onSetInputFolder)
-        self._btnSetOutput.clicked.connect(self._onSetOutputFolder)
-        self._btnExit.clicked.connect(self.close)
+        # Buttons
+        self._btnSetInput.clicked.connect(self._onSetInputFolder)  
+        self._btnSetOutput.clicked.connect(self._onSetOutputFolder) 
 
-        # Connect menu actions
-        self._actionSetInput.triggered.connect(self._onSetInputFolder)
-        self._actionSetOutput.triggered.connect(self._onSetOutputFolder)
-        self._actionRefresh.triggered.connect(self._onRefresh)
-        self._actionExit.triggered.connect(self.close)
-        self._actionAbout.triggered.connect(self._onAbout)
+        # Menu actions
+        if self._actionSetInput:
+            self._actionSetInput.triggered.connect(self._onSetInputFolder)
+        if self._actionSetOutput:
+            self._actionSetOutput.triggered.connect(self._onSetOutputFolder)
+        if self._actionRefresh:
+            self._actionRefresh.triggered.connect(self._onRefresh)
+        if self._actionAbout:
+            self._actionAbout.triggered.connect(self._onAbout)
 
-        # Connect widget signals
+        # Menu exit
+        if self._actionExit:
+            self._actionExit.triggered.connect(self.close)  
+
+        # Button Bar Actions
+        self._buttonBar.cancelRequested.connect(self.close)
+        self._buttonBar.okRequested.connect(self._onOk)
+
+        # Widget signals
         self._thumbnailList.imageSelected.connect(self._onImageSelected)
         self._thumbnailList.thumbnailsLoaded.connect(self._onThumbnailsLoaded)
         self._editorPanel.sidecarSaved.connect(self._onSidecarSaved)
 
+    def _onOk(self):
+        if self._editorPanel.hasUnsavedChanges():
+            reply = QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                "You have unsaved changes. Do you want to save before exiting?",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,  # type: ignore
+                QMessageBox.Yes,  # type: ignore
+            )
+            if reply == QMessageBox.Cancel:  # type: ignore
+                return
+            elif reply == QMessageBox.Yes:  # type: ignore
+                self._editorPanel.saveCurrentSidecar()
+        self.close()
+
     def _restoreState(self):
         """Restore window state and paths from config."""
-        # Restore window geometry
         geometry = sidecarConfig.getWindowGeometry()
         if geometry:
             self.setGeometry(
                 geometry["x"], geometry["y"], geometry["width"], geometry["height"]
             )
 
-        # Restore input/output paths
         inputRoot = sidecarConfig.getInputRoot()
         if inputRoot:
             self._setInputRoot(inputRoot)
-            # Defer scanning images until after window is shown
-            # This prevents the app from appearing frozen on startup
             QTimer.singleShot(100, self._scanImages)
 
         outputRoot = sidecarConfig.getOutputRoot()
         if outputRoot:
             self._setOutputRoot(outputRoot)
 
+        # Apply default region sizing AFTER geometry restore (prevents "ignored" sizing)
+        QTimer.singleShot(0, self._applyRegionDefaults)
+
+    def _applyRegionDefaults(self):
+        """Apply default region sizing after layouts have settled."""
+        if hasattr(self, "_sidecarRegion"):
+            self._sidecarRegion.setSizes([400, 1000]) # type: ignore
+
+        if hasattr(self, "_editorRegion"):
+               self._sidecarRegion.setSizes([400, 1000]) # type: ignore
+
     def _saveState(self):
         """Save window state and paths to config."""
-        # Save window geometry
         geometry = self.geometry()
         sidecarConfig.setWindowGeometry(
             geometry.x(), geometry.y(), geometry.width(), geometry.height()
@@ -232,17 +294,14 @@ class MainWindow(QMainWindow):
                 "Welcome! Please set an input folder to get started (File > Set Input Folder)"
             )
         else:
-            # If we have an input root, show loading message since thumbnails will be loading
             self.statusBar().showMessage("Loading thumbnails...")
 
     def _onSetInputFolder(self):
         """Handle set input folder action."""
         initialDir = self._inputRoot or ""
-
         folder = QFileDialog.getExistingDirectory(
             self, "Select Input Folder", initialDir
         )
-
         if folder:
             self._setInputRoot(folder)
             self._scanImages()
@@ -250,36 +309,24 @@ class MainWindow(QMainWindow):
     def _onSetOutputFolder(self):
         """Handle set output folder action."""
         initialDir = self._outputRoot or ""
-
         folder = QFileDialog.getExistingDirectory(
             self, "Select Output Folder", initialDir
         )
-
         if folder:
             self._setOutputRoot(folder)
 
     def _setInputRoot(self, path: str):
-        """
-        Set the input root folder.
-
-        Args:
-            path: Input folder path
-        """
+        """Set the input root folder."""
         self._inputRoot = path
-        self._inputLabel.setText(path)
-        self._inputLabel.setStyleSheet("")
+        self._txtInputFolder.setText(path)  # type: ignore
+        self._txtInputFolder.setStyleSheet("")  # type: ignore
         sidecarConfig.setInputRoot(path)
 
     def _setOutputRoot(self, path: str):
-        """
-        Set the output root folder.
-
-        Args:
-            path: Output folder path
-        """
+        """Set the output root folder."""
         self._outputRoot = path
-        self._outputLabel.setText(path)
-        self._outputLabel.setStyleSheet("")
+        self._txtOutputFolder.setText(path)  # type: ignore
+        self._txtOutputFolder.setStyleSheet("")  # type: ignore
         self._outputResolver.setOutputRoot(path)
         sidecarConfig.setOutputRoot(path)
 
@@ -294,30 +341,23 @@ class MainWindow(QMainWindow):
             images = scanImages(self._inputRoot)
             self._currentImages = images
 
-            # Show loading message for thumbnails BEFORE loading starts
             if images:
                 self.statusBar().showMessage(
                     f"Loading thumbnails for {len(images)} images..."
                 )
 
-            # Load images - this will emit thumbnailsLoaded signal when done
             self._thumbnailList.loadImages(images, self._inputRoot)
 
-            # Select last selected image if available
             lastImage = sidecarConfig.getLastSelectedImage()
             if lastImage and lastImage in images:
                 self._thumbnailList.selectImage(lastImage)
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to scan images:\n{str(e)}")
             self.statusBar().showMessage("Error scanning images")
 
     def _onThumbnailsLoaded(self, imageCount: int):
-        """
-        Handle thumbnails loaded event.
-
-        Args:
-            imageCount: Number of thumbnails loaded
-        """
+        """Handle thumbnails loaded event."""
         self.statusBar().showMessage(f"Loaded {imageCount} images")
 
     def _onRefresh(self):
@@ -325,31 +365,35 @@ class MainWindow(QMainWindow):
         self._scanImages()
 
     def _onImageSelected(self, imagePath: str):
-        """
-        Handle image selection.
-
-        Args:
-            imagePath: Path to the selected image
-        """
-        # Save selection
+        """Handle image selection."""
         sidecarConfig.setLastSelectedImage(imagePath)
 
-        # Load sidecar
+        # Load sidecar into editor
         try:
             sidecar = loadSidecar(imagePath)
             self._editorPanel.loadSidecar(sidecar)
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Failed to load sidecar:\n{str(e)}")
 
-        # Resolve output image
+        # Resolve output image path (same relative file under output root)
         outputPath = None
+
         if self._outputRoot and self._inputRoot:
             outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
 
-        # Update preview
-        self._imagePreview.setImages(imagePath, outputPath)
+        # Update previews:
+        # - left preview: input only
+        # - right preview: output only (if not found, show input again as a fallback)
+        self._inputPreview.setImage(imagePath) # type: ignore
 
-        # Update status
+        outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
+
+        if outputPath:
+            self._outputPreview.setImage(outputPath) # type: ignore
+        else:
+            self._outputPreview.setImage(None)  # type: ignore
+
+        # Status
         status = f"Loaded: {os.path.basename(imagePath)}"
         if outputPath:
             status += f" (output: {os.path.basename(outputPath)})"
@@ -358,12 +402,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(status)
 
     def _onSidecarSaved(self, imagePath: str):
-        """
-        Handle sidecar saved event.
-
-        Args:
-            imagePath: Path to the image whose sidecar was saved
-        """
+        """Handle sidecar saved event."""
         self.statusBar().showMessage(f"Saved sidecar for {os.path.basename(imagePath)}")
 
     def _onAbout(self):
@@ -386,20 +425,17 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handle window close event."""
-        # Check for unsaved changes
         if self._editorPanel.hasUnsavedChanges():
             reply = QMessageBox.question(
                 self,
                 "Unsaved Changes",
                 "You have unsaved changes. Do you want to exit anyway?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No,
+                QMessageBox.Yes | QMessageBox.No,  # type: ignore
+                QMessageBox.No,  # type: ignore
             )
-
-            if reply == QMessageBox.No:
+            if reply == QMessageBox.No:  # type: ignore
                 event.ignore()
                 return
 
-        # Save state
         self._saveState()
         event.accept()

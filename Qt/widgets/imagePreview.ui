@@ -24,9 +24,9 @@
       </widget>
      </item>
      <item>
-      <spacer name="horizontalSpacer">
+      <spacer name="hrzSpacer">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>
@@ -36,23 +36,10 @@
        </property>
       </spacer>
      </item>
-     <item>
-      <widget class="QPushButton" name="btnToggle">
-       <property name="text">
-        <string>Show Output</string>
-       </property>
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
     </layout>
    </item>
    <item>
     <widget class="QLabel" name="lblImage">
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
      <property name="minimumSize">
       <size>
        <width>400</width>
@@ -64,6 +51,9 @@
      </property>
      <property name="text">
       <string>No image selected</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
      </property>
     </widget>
    </item>
