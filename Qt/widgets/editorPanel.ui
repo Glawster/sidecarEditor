@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>600</width>
-    <height>1050</height>
+    <height>1140</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -39,19 +39,6 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
-          <widget class="QTextEdit" name="txtSubjectRaw">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>80</height>
-            </size>
-           </property>
-           <property name="placeholderText">
-            <string>Enter subject (raw)...</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </widget>
       </item>
@@ -61,19 +48,6 @@
          <string>Pose</string>
         </property>
         <layout class="QGridLayout" name="gridLayout_5">
-         <item row="1" column="0">
-          <widget class="QTextEdit" name="txtPoseRaw">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>30</height>
-            </size>
-           </property>
-           <property name="placeholderText">
-            <string>Enter pose (raw)...</string>
-           </property>
-          </widget>
-         </item>
          <item row="0" column="0">
           <widget class="QTextEdit" name="txtPosePrompt">
            <property name="minimumSize">
@@ -109,19 +83,6 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
-          <widget class="QTextEdit" name="txtClothingRaw">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>30</height>
-            </size>
-           </property>
-           <property name="placeholderText">
-            <string>Enter clothing (raw)...</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </widget>
       </item>
@@ -144,19 +105,6 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
-          <widget class="QTextEdit" name="txtLingerieRaw">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>30</height>
-            </size>
-           </property>
-           <property name="placeholderText">
-            <string>Enter lingerie (raw)...</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </widget>
       </item>
@@ -166,19 +114,6 @@
          <string>Setting</string>
         </property>
         <layout class="QGridLayout" name="gridLayout_8">
-         <item row="1" column="0">
-          <widget class="QTextEdit" name="txtSettingRaw">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>30</height>
-            </size>
-           </property>
-           <property name="placeholderText">
-            <string>Enter setting (raw)...</string>
-           </property>
-          </widget>
-         </item>
          <item row="0" column="0">
           <widget class="QTextEdit" name="txtSettingPrompt">
            <property name="minimumSize">
@@ -211,19 +146,6 @@
            </property>
            <property name="placeholderText">
             <string>Enter composition (prompt)...</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="QTextEdit" name="txtCompositionRaw">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>30</height>
-            </size>
-           </property>
-           <property name="placeholderText">
-            <string>Enter composition (raw)...</string>
            </property>
           </widget>
          </item>

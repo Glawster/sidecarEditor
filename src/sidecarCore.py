@@ -58,59 +58,9 @@ def getSidecarPath(imagePath: str) -> Path:
         Path to the sidecar file
     """
     imgPath = Path(imagePath)
-    return imgPath.parent / f"{imgPath.name}.prompt.json"
-
-
-def loadSidecar(imagePath: str) -> SidecarData:
-    """
-    Load sidecar data for an image.
-    If the sidecar doesn't exist, returns a minimal default.
-
-    Args:
-        imagePath: Path to the image file
-
-    Returns:
-        SidecarData object
-    """
-    sidecarPath = getSidecarPath(imagePath)
-
-    if sidecarPath.exists():
-        try:
-            with open(sidecarPath, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return SidecarData.fromDict(imagePath, data)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Could not load sidecar {sidecarPath}: {e}")
-
-    # Return minimal default
-    return SidecarData(imagePath=imagePath)
-
-
-def saveSidecar(sidecar: SidecarData, createBackup: bool = True):
-    """
-    Save sidecar data to disk.
-
-    Args:
-        sidecar: SidecarData to save
-        createBackup: If True, create .bak backup before saving
-    """
-    sidecarPath = getSidecarPath(sidecar.imagePath)
-
-    # Create backup if file exists
-    if createBackup and sidecarPath.exists():
-        backupPath = Path(str(sidecarPath) + ".bak")
-        try:
-            backupPath.write_bytes(sidecarPath.read_bytes())
-        except IOError as e:
-            print(f"Warning: Could not create backup {backupPath}: {e}")
-
-    # Save the sidecar
-    try:
-        with open(sidecarPath, "w", encoding="utf-8") as f:
-            json.dump(sidecar.toDict(), f, indent=2, ensure_ascii=False)
-    except IOError as e:
-        print(f"Error: Could not save sidecar {sidecarPath}: {e}")
-        raise
+    # drop extension from image name and add .prompt.json
+    baseName = imgPath.stem
+    return imgPath.parent / f"{baseName}.prompt.json"
 
 
 def scanImages(rootPath: str, extensions: Optional[List[str]] = None) -> List[str]:

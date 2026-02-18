@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QPushButton,
 )
 
-from src.sidecarCore import SidecarData, saveSidecar
+from src.sidecarCore import SidecarData
 
 
 class EditorPanel(QWidget):
@@ -57,17 +57,17 @@ class EditorPanel(QWidget):
 
         # Positive prompt fields
         self._subjectPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtSubjectPrompt")  # type: ignore
-        self._subjectRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtSubjectRaw")  # type: ignore
+        self._subjectRaw = ""
         self._posePrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtPosePrompt")  # type: ignore
-        self._poseRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtPoseRaw")  # type: ignore
+        self._poseRaw = ""
         self._clothingPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtClothingPrompt")  # type: ignore
-        self._clothingRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtClothingRaw")  # type: ignore
+        self._clothingRaw = ""
         self._lingeriePrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtLingeriePrompt")  # type: ignore
-        self._lingerieRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtLingerieRaw")  # type: ignore
+        self._lingerieRaw = ""
         self._settingPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtSettingPrompt")  # type: ignore
-        self._settingRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtSettingRaw")  # type: ignore
+        self._settingRaw = ""
         self._compositionPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtCompositionPrompt")  # type: ignore
-        self._compositionRaw: QTextEdit = self.ui.findChild(QTextEdit, "txtCompositionRaw")  # type: ignore
+        self._compositionRaw = ""
 
         # Negative
         self._negPromptEdit: QTextEdit = self.ui.findChild(QTextEdit, "txtNegativePrompt")  # type: ignore
@@ -87,17 +87,11 @@ class EditorPanel(QWidget):
             name
             for name, w in {
                 "txtSubjectPrompt": self._subjectPrompt,
-                "txtSubjectRaw": self._subjectRaw,
                 "txtPosePrompt": self._posePrompt,
-                "txtPoseRaw": self._poseRaw,
                 "txtClothingPrompt": self._clothingPrompt,
-                "txtClothingRaw": self._clothingRaw,
                 "txtLingeriePrompt": self._lingeriePrompt,
-                "txtLingerieRaw": self._lingerieRaw,
                 "txtSettingPrompt": self._settingPrompt,
-                "txtSettingRaw": self._settingRaw,
                 "txtCompositionPrompt": self._compositionPrompt,
-                "txtCompositionRaw": self._compositionRaw,
                 "txtNegativePrompt": self._negPromptEdit,
                 "txtNegativeStyle": self._negStyleEdit,
                 "chkLocked": self._chkLocked,
@@ -113,13 +107,14 @@ class EditorPanel(QWidget):
 
         # Signals
         for w in (
-            self._subjectPrompt, self._subjectRaw,
-            self._posePrompt, self._poseRaw,
-            self._clothingPrompt, self._clothingRaw,
-            self._lingeriePrompt, self._lingerieRaw,
-            self._settingPrompt, self._settingRaw,
-            self._compositionPrompt, self._compositionRaw,
-            self._negPromptEdit, self._negStyleEdit,
+            self._subjectPrompt, 
+            self._posePrompt, 
+            self._clothingPrompt, 
+            self._lingeriePrompt, 
+            self._settingPrompt, 
+            self._compositionPrompt, 
+            self._negPromptEdit, 
+            self._negStyleEdit,
             self._txtNotes,
         ):
             w.textChanged.connect(self._onContentChanged)  # type: ignore
@@ -150,7 +145,7 @@ class EditorPanel(QWidget):
         # Try to find & read the input-sidecar json
         inputData: Dict[str, Any] = {}
         try:
-            inputSidecarPath = self._findInputSidecarPath(getattr(sidecar, "imagePath", ""))
+            inputSidecarPath = self._findSidecarPath(getattr(sidecar, "imagePath", ""))
             if inputSidecarPath:
                 inputData = self._readJson(inputSidecarPath)
         except Exception:
@@ -163,26 +158,50 @@ class EditorPanel(QWidget):
         # - Lingerie raw: positive.lingerie.raw
         # - Setting raw: positive.location.raw
         # - Composition raw: positive.camera.raw
-        rawSubject = self._get(inputData, "positive.description") or ""
-        rawPose = self._get(inputData, "positive.pose.raw") or ""
-        rawClothing = self._get(inputData, "positive.clothing.raw") or ""
-        rawLingerie = self._get(inputData, "positive.lingerie.raw") or ""
-        rawSetting = self._get(inputData, "positive.location.raw") or ""
-        rawComposition = self._get(inputData, "positive.camera.raw") or ""
 
-        # Block signals while populating
         self._blockAll(True)
 
-        # Raw fields (this is what you asked for)
-        self._subjectRaw.setPlainText(rawSubject)
-        self._poseRaw.setPlainText(rawPose)
-        self._clothingRaw.setPlainText(rawClothing)
-        self._lingerieRaw.setPlainText(rawLingerie)
-        self._settingRaw.setPlainText(rawSetting)
-        self._compositionRaw.setPlainText(rawComposition)
+        # for each field get the prompt and raw text; if prompt is missing, fallback to 
+        # raw for the prompt field (so at least something shows up in the UI)
+        # subject is a bit special since it doesn't have a dedicated raw field, so we just use the description as raw too
+        promptText = self._get(inputData, "positive.description") or ""
+        self._subjectPrompt.setPlainText(promptText)
+        self._subjectRaw = promptText  # no separate raw, so just mirror the prompt
 
-        # Prompt fields: leave as-is (blank by default); later we’ll bind these to prompt json.
-        # Negative/status/notes: also leave as-is for now.
+        rawText = self._get(inputData, "positive.pose.raw") or ""
+        promptText = self._get(inputData, "positive.pose.prompt") or ""
+        if not promptText.strip():
+             promptText = rawText  # fallback to raw if prompt is missing
+        self._posePrompt.setPlainText(promptText)
+        self._poseRaw = rawText
+
+        rawText = self._get(inputData, "positive.clothing.raw") or ""
+        promptText = self._get(inputData, "positive.clothing.prompt") or ""
+        if not promptText.strip():
+             promptText = rawText  # fallback to raw if prompt is missing
+        self._clothingPrompt.setPlainText(promptText)
+        self._clothingRaw = rawText
+
+        rawText = self._get(inputData, "positive.lingerie.raw") or ""
+        promptText = self._get(inputData, "positive.lingerie.prompt") or ""
+        if not promptText.strip():
+             promptText = rawText  # fallback to raw if prompt is missing
+        self._lingeriePrompt.setPlainText(promptText)
+        self._lingerieRaw = rawText
+
+        rawText = self._get(inputData, "positive.location.raw") or ""
+        promptText = self._get(inputData, "positive.location.prompt") or ""
+        if not promptText.strip():
+             promptText = rawText  # fallback to raw if prompt is missing
+        self._settingPrompt.setPlainText(promptText)
+        self._settingRaw = rawText
+
+        rawText = self._get(inputData, "positive.camera.raw") or ""
+        promptText = self._get(inputData, "positive.camera.prompt") or ""
+        if not promptText.strip():
+             promptText = rawText  # fallback to raw if prompt is missing
+        self._compositionPrompt.setPlainText(promptText)
+        self._compositionRaw = rawText
 
         self._blockAll(False)
 
@@ -196,16 +215,26 @@ class EditorPanel(QWidget):
         self._blockAll(True)
 
         for w in (
-            self._subjectPrompt, self._subjectRaw,
-            self._posePrompt, self._poseRaw,
-            self._clothingPrompt, self._clothingRaw,
-            self._lingeriePrompt, self._lingerieRaw,
-            self._settingPrompt, self._settingRaw,
-            self._compositionPrompt, self._compositionRaw,
-            self._negPromptEdit, self._negStyleEdit,
+            self._subjectPrompt, 
+            self._posePrompt, 
+            self._clothingPrompt, 
+            self._lingeriePrompt, 
+            self._settingPrompt, 
+            self._compositionPrompt, 
+            self._negPromptEdit, 
+            self._negStyleEdit,
             self._txtNotes,
         ):
             w.clear()
+        for w in (
+            self._subjectRaw,
+            self._poseRaw,
+            self._clothingRaw,
+            self._lingerieRaw,
+            self._settingRaw,
+            self._compositionRaw
+        ):
+            w = ""
 
         self._chkLocked.setChecked(False)
         self._chkReviewed.setChecked(False)
@@ -227,7 +256,7 @@ class EditorPanel(QWidget):
         try:
             # For now we are NOT writing raw fields into the prompt-sidecar object yet.
             # Next step will map UI -> SidecarData structured fields.
-            saveSidecar(self._currentSidecar, createBackup=True)
+            self._saveSidecar(self._currentSidecar, createBackup=True)
             self._revertButton.setEnabled(False)  # type: ignore
             self.sidecarSaved.emit(getattr(self._currentSidecar, "imagePath", ""))
             return True
@@ -252,6 +281,32 @@ class EditorPanel(QWidget):
     def _onSave(self):
         self.saveCurrentSidecar()
 
+    def _saveSidecar(self, sidecar: SidecarData, createBackup: bool = True):
+        """
+        Save sidecar data to disk.
+
+        Args:
+            sidecar: SidecarData to save
+            createBackup: If True, create .bak backup before saving
+        """
+        sidecarPath = self._findSidecarPath(sidecar.imagePath)
+
+        # Create backup if file exists
+        if createBackup and sidecarPath.exists():
+            backupPath = Path(str(sidecarPath) + ".bak")
+            try:
+                backupPath.write_bytes(sidecarPath.read_bytes())
+            except IOError as e:
+                print(f"Warning: Could not create backup {backupPath}: {e}")
+
+        # Save the sidecar
+        try:
+            with open(sidecarPath, "w", encoding="utf-8") as f:
+                json.dump(sidecar.toDict(), f, indent=2, ensure_ascii=False)
+        except IOError as e:
+            print(f"Error: Could not save sidecar {sidecarPath}: {e}")
+            raise
+
     def _onRevert(self):
         if not self._currentSidecar:
             return
@@ -272,20 +327,22 @@ class EditorPanel(QWidget):
 
     def _blockAll(self, blocked: bool):
         for w in (
-            self._subjectPrompt, self._subjectRaw,
-            self._posePrompt, self._poseRaw,
-            self._clothingPrompt, self._clothingRaw,
-            self._lingeriePrompt, self._lingerieRaw,
-            self._settingPrompt, self._settingRaw,
-            self._compositionPrompt, self._compositionRaw,
-            self._negPromptEdit, self._negStyleEdit,
+            self._subjectPrompt, 
+            self._posePrompt, 
+            self._clothingPrompt, 
+            self._lingeriePrompt, 
+            self._settingPrompt, 
+            self._compositionPrompt, 
+            self._negPromptEdit, 
+            self._negStyleEdit,
             self._txtNotes,
         ):
             w.blockSignals(blocked)  # type: ignore
+
         self._chkLocked.blockSignals(blocked)  # type: ignore
         self._chkReviewed.blockSignals(blocked)  # type: ignore
 
-    def _findInputSidecarPath(self, imagePath: str) -> Optional[Path]:
+    def _findSidecarPath(self, imagePath: str) -> Optional[Path]:
         """
         Try a few common patterns:
         - same folder: input.prompt.json
@@ -325,3 +382,30 @@ class EditorPanel(QWidget):
                 return None
             cur = cur.get(part)
         return cur
+
+    def _backupFile(self, path: Path) -> None:
+        if path.exists():
+            bak = Path(str(path) + ".bak")
+            bak.write_bytes(path.read_bytes())
+
+    def _assemblePositivePrompt(self) -> str:
+        # Simple comma-join of non-empty fields (you can tune ordering later)
+        parts = [
+            self._subjectPrompt.toPlainText().strip(),
+            self._posePrompt.toPlainText().strip(),
+            self._clothingPrompt.toPlainText().strip(),
+            self._lingeriePrompt.toPlainText().strip(),
+            self._settingPrompt.toPlainText().strip(),
+            self._compositionPrompt.toPlainText().strip(),
+        ]
+        parts = [p for p in parts if p]
+        return ", ".join(parts)
+
+    def _assembleNegativePrompt(self) -> str:
+        # Simple comma-join of negative prompt and style (you can tune ordering later)
+        parts = [
+            self._negPromptEdit.toPlainText().strip(),
+            self._negStyleEdit.toPlainText().strip(),
+        ]
+        parts = [p for p in parts if p]
+        return ", ".join(parts)
