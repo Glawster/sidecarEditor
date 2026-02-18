@@ -3,3 +3,5 @@ logs/
 *.log
 *.pyc
 Qt/.qtcreator/project.json.user
+Qt/widgets/.qtcreator/project.json.user
+project.json.user

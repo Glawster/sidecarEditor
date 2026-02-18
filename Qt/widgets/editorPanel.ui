@@ -252,6 +252,13 @@
       </spacer>
      </item>
      <item>
+      <widget class="QPushButton" name="btnUpdateRaw">
+       <property name="text">
+        <string>Update Raw</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="btnGenerate">
        <property name="text">
         <string>Generate Output</string>

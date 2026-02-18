@@ -82,6 +82,7 @@ class EditorPanel(QWidget):
         self._saveButton: QPushButton = self.ui.findChild(QPushButton, "btnSave")  # type: ignore
         self._revertButton: QPushButton = self.ui.findChild(QPushButton, "btnRevert")  # type: ignore
         self._generateButton: Optional[QPushButton] = self.ui.findChild(QPushButton, "btnGenerate")  # type: ignore
+        self._updateRawButton: Optional[QPushButton] = self.ui.findChild(QPushButton, "btnUpdateRaw")  # type: ignore
 
         missing = [
             name
@@ -127,6 +128,9 @@ class EditorPanel(QWidget):
 
         if self._generateButton is not None:
             self._generateButton.clicked.connect(self._onGenerate)  # type: ignore
+        
+        if self._updateRawButton is not None:
+            self._updateRawButton.clicked.connect(self._onUpdateRaw)  # type: ignore
 
         self._saveButton.setEnabled(False)  # type: ignore
         self._revertButton.setEnabled(False)  # type: ignore
@@ -226,15 +230,13 @@ class EditorPanel(QWidget):
             self._txtNotes,
         ):
             w.clear()
-        for w in (
-            self._subjectRaw,
-            self._poseRaw,
-            self._clothingRaw,
-            self._lingerieRaw,
-            self._settingRaw,
-            self._compositionRaw
-        ):
-            w = ""
+
+        self._subjectRaw = ""
+        self._poseRaw = ""
+        self._clothingRaw = ""
+        self._lingerieRaw = ""
+        self._settingRaw = ""
+        self._compositionRaw = ""
 
         self._chkLocked.setChecked(False)
         self._chkReviewed.setChecked(False)
@@ -248,24 +250,63 @@ class EditorPanel(QWidget):
     # Save / revert (kept minimal for now)
     # ------------------------------------------------------------
 
+    def loadFromImage(self, imagePath: str) -> None:
+        """
+        Single entry point from MainWindow.
+        Resolves the prompt sidecar path, loads it if present, else creates default,
+        then populates UI via existing loadSidecar(SidecarData).
+        """
+        sidecarPath = self._findSidecarPath(imagePath)
+
+        data = {}
+        if sidecarPath and sidecarPath.exists():
+            data = self._readJson(sidecarPath)
+
+        sidecar = SidecarData.fromDict(imagePath, data)
+        self.loadSidecar(sidecar)
+
+    def hasUnsavedChanges(self) -> bool:
+        return self._revertButton.isEnabled()  # type: ignore
+    
     def saveCurrentSidecar(self) -> bool:
         """Save the currently loaded sidecar. Returns True if saved."""
         if not self._currentSidecar:
             return False
 
         try:
-            # For now we are NOT writing raw fields into the prompt-sidecar object yet.
-            # Next step will map UI -> SidecarData structured fields.
+            # write UI -> SidecarData
+            self._currentSidecar.prompt = self._assemblePositivePrompt()
+            self._currentSidecar.negativePrompt = self._assembleNegativePrompt()
+
+            # persist baseline + per-field prompts in metadata so it survives reload
+            md = self._currentSidecar.metadata or {}
+            md["fields"] = {
+                "subject": {"raw": self._subjectRaw, "prompt": self._subjectPrompt.toPlainText().strip()},
+                "pose": {"raw": self._poseRaw, "prompt": self._posePrompt.toPlainText().strip()},
+                "clothing": {"raw": self._clothingRaw, "prompt": self._clothingPrompt.toPlainText().strip()},
+                "lingerie": {"raw": self._lingerieRaw, "prompt": self._lingeriePrompt.toPlainText().strip()},
+                "setting": {"raw": self._settingRaw, "prompt": self._settingPrompt.toPlainText().strip()},
+                "composition": {"raw": self._compositionRaw, "prompt": self._compositionPrompt.toPlainText().strip()},
+            }
+            md["status"] = {
+                "locked": bool(self._chkLocked.isChecked()),
+                "reviewed": bool(self._chkReviewed.isChecked()),
+                "notes": self._txtNotes.toPlainText().strip(),
+            }
+            self._currentSidecar.metadata = md
+
+            # save to disk
             self._saveSidecar(self._currentSidecar, createBackup=True)
+
             self._revertButton.setEnabled(False)  # type: ignore
             self.sidecarSaved.emit(getattr(self._currentSidecar, "imagePath", ""))
+
             return True
+
         except Exception as e:
             QMessageBox.critical(self, "Save Error", f"Failed to save sidecar:\n{e}")
             return False
 
-    def hasUnsavedChanges(self) -> bool:
-        return self._revertButton.isEnabled()  # type: ignore
 
     # ------------------------------------------------------------
     # Events
@@ -281,49 +322,79 @@ class EditorPanel(QWidget):
     def _onSave(self):
         self.saveCurrentSidecar()
 
-    def _saveSidecar(self, sidecar: SidecarData, createBackup: bool = True):
-        """
-        Save sidecar data to disk.
-
-        Args:
-            sidecar: SidecarData to save
-            createBackup: If True, create .bak backup before saving
-        """
-        sidecarPath = self._findSidecarPath(sidecar.imagePath)
-
-        # Create backup if file exists
-        if createBackup and sidecarPath.exists():
-            backupPath = Path(str(sidecarPath) + ".bak")
-            try:
-                backupPath.write_bytes(sidecarPath.read_bytes())
-            except IOError as e:
-                print(f"Warning: Could not create backup {backupPath}: {e}")
-
-        # Save the sidecar
-        try:
-            with open(sidecarPath, "w", encoding="utf-8") as f:
-                json.dump(sidecar.toDict(), f, indent=2, ensure_ascii=False)
-        except IOError as e:
-            print(f"Error: Could not save sidecar {sidecarPath}: {e}")
-            raise
-
     def _onRevert(self):
+        if not self._currentSidecar:
+            return
+
+        self._blockAll(True)
+        self._subjectPrompt.setPlainText(self._subjectRaw or "")
+        self._posePrompt.setPlainText(self._poseRaw or "")
+        self._clothingPrompt.setPlainText(self._clothingRaw or "")
+        self._lingeriePrompt.setPlainText(self._lingerieRaw or "")
+        self._settingPrompt.setPlainText(self._settingRaw or "")
+        self._compositionPrompt.setPlainText(self._compositionRaw or "")
+        self._blockAll(False)
+        self._revertButton.setEnabled(False)
+
+    def _onUpdateRaw(self):
+        """
+        Commit current prompt fields as the new baseline (raw).
+        This does NOT save to disk by itself — it just updates the baseline
+        so you can continue editing and use Revert meaningfully.
+        """
         if not self._currentSidecar:
             return
 
         reply = QMessageBox.question(
             self,
-            "Revert Changes",
-            "Discard all unsaved changes?",
+            "Update Raw",
+            "Set the current prompt fields as the new baseline?",
             QMessageBox.Yes | QMessageBox.No,  # type: ignore
             QMessageBox.No,  # type: ignore
         )
-        if reply == QMessageBox.Yes:  # type: ignore
-            self.loadSidecar(self._currentSidecar)
+        if reply != QMessageBox.Yes:  # type: ignore
+            return
+
+        self._subjectRaw = self._subjectPrompt.toPlainText().strip()
+        self._poseRaw = self._posePrompt.toPlainText().strip()
+        self._clothingRaw = self._clothingPrompt.toPlainText().strip()
+        self._lingerieRaw = self._lingeriePrompt.toPlainText().strip()
+        self._settingRaw = self._settingPrompt.toPlainText().strip()
+        self._compositionRaw = self._compositionPrompt.toPlainText().strip()
+
+        # baseline updated, so there are no longer "unsaved changes" relative to baseline
+        self._revertButton.setEnabled(False)  # type: ignore
 
     # ------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------
+
+    def _assembleNegativePrompt(self) -> str:
+        # Simple comma-join of negative prompt and style (you can tune ordering later)
+        parts = [
+            self._negPromptEdit.toPlainText().strip(),
+            self._negStyleEdit.toPlainText().strip(),
+        ]
+        parts = [p for p in parts if p]
+        return ", ".join(parts)
+
+    def _assemblePositivePrompt(self) -> str:
+        # Simple comma-join of non-empty fields (you can tune ordering later)
+        parts = [
+            self._subjectPrompt.toPlainText().strip(),
+            self._posePrompt.toPlainText().strip(),
+            self._clothingPrompt.toPlainText().strip(),
+            self._lingeriePrompt.toPlainText().strip(),
+            self._settingPrompt.toPlainText().strip(),
+            self._compositionPrompt.toPlainText().strip(),
+        ]
+        parts = [p for p in parts if p]
+        return ", ".join(parts)
+
+    def _backupFile(self, path: Path) -> None:
+        if path.exists():
+            bak = Path(str(path) + ".bak")
+            bak.write_bytes(path.read_bytes())
 
     def _blockAll(self, blocked: bool):
         for w in (
@@ -345,31 +416,26 @@ class EditorPanel(QWidget):
     def _findSidecarPath(self, imagePath: str) -> Optional[Path]:
         """
         Try a few common patterns:
-        - same folder: input.prompt.json
-        - alongside image: <stem>.prompt.json
+        - alongside image: <stem>.prompt.json (we want this one to be the default if it exists, since it's the most explicit and specific to the image)
         - alongside image: <filename>.prompt.json (e.g. clothed-142.png.prompt.json)
+        - same folder: input.prompt.json
         """
         if not imagePath:
             return None
 
         p = Path(imagePath)
         candidates = [
-            p.parent / "input.prompt.json",
             p.with_suffix(".prompt.json"),
             Path(str(p) + ".prompt.json"),
+            p.parent / "input.prompt.json",
         ]
+        filename = p.with_suffix(".prompt.json")  # fallback to standard alongside path
         for c in candidates:
             if c.exists() and c.is_file():
-                return c
-        return None
+                filename = c
+                break
 
-    def _readJson(self, path: Path) -> Dict[str, Any]:
-        try:
-            txt = path.read_text(encoding="utf-8")
-            obj = json.loads(txt)
-            return obj if isinstance(obj, dict) else {}
-        except Exception:
-            return {}
+        return filename 
 
     def _get(self, obj: Dict[str, Any], dottedPath: str) -> Any:
         """
@@ -383,29 +449,36 @@ class EditorPanel(QWidget):
             cur = cur.get(part)
         return cur
 
-    def _backupFile(self, path: Path) -> None:
-        if path.exists():
-            bak = Path(str(path) + ".bak")
-            bak.write_bytes(path.read_bytes())
+    def _readJson(self, path: Path) -> Dict[str, Any]:
+        try:
+            txt = path.read_text(encoding="utf-8")
+            obj = json.loads(txt)
+            return obj if isinstance(obj, dict) else {}
+        except Exception:
+            return {}
 
-    def _assemblePositivePrompt(self) -> str:
-        # Simple comma-join of non-empty fields (you can tune ordering later)
-        parts = [
-            self._subjectPrompt.toPlainText().strip(),
-            self._posePrompt.toPlainText().strip(),
-            self._clothingPrompt.toPlainText().strip(),
-            self._lingeriePrompt.toPlainText().strip(),
-            self._settingPrompt.toPlainText().strip(),
-            self._compositionPrompt.toPlainText().strip(),
-        ]
-        parts = [p for p in parts if p]
-        return ", ".join(parts)
+    def _saveSidecar(self, sidecar: SidecarData, createBackup: bool = True):
+        """
+        Save sidecar data to disk.
 
-    def _assembleNegativePrompt(self) -> str:
-        # Simple comma-join of negative prompt and style (you can tune ordering later)
-        parts = [
-            self._negPromptEdit.toPlainText().strip(),
-            self._negStyleEdit.toPlainText().strip(),
-        ]
-        parts = [p for p in parts if p]
-        return ", ".join(parts)
+        Args:
+            sidecar: SidecarData to save
+            createBackup: If True, create .bak backup before saving
+        """
+        sidecarPath = self._findSidecarPath(sidecar.imagePath)
+
+        # Create backup if file exists
+        if createBackup and sidecarPath.exists(): # type: ignore
+            backupPath = Path(str(sidecarPath) + ".bak")
+            try:
+                backupPath.write_bytes(sidecarPath.read_bytes()) # type: ignore
+            except IOError as e:
+                print(f"Warning: Could not create backup {backupPath}: {e}")
+
+        # Save the sidecar
+        try:
+            with open(sidecarPath, "w", encoding="utf-8") as f: # type: ignore
+                json.dump(sidecar.toDict(), f, indent=2, ensure_ascii=False)
+        except IOError as e:
+            print(f"Error: Could not save sidecar {sidecarPath}: {e}")
+            raise

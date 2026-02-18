@@ -25,7 +25,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtUiTools import QUiLoader
 
 import src.sidecarConfig as sidecarConfig
-from src.sidecarCore import scanImages, loadSidecar
+from src.sidecarCore import scanImages
 from src.outputResolver import OutputResolver
 
 from Qt.widgets.thumbnailList import ThumbnailList
@@ -370,24 +370,17 @@ class MainWindow(QMainWindow):
 
         # Load sidecar into editor
         try:
-            sidecar = loadSidecar(imagePath)
-            self._editorPanel.loadSidecar(sidecar)
+            self._editorPanel.loadFromImage(imagePath)  # type: ignore
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Failed to load sidecar:\n{str(e)}")
-
-        # Resolve output image path (same relative file under output root)
-        outputPath = None
-
-        if self._outputRoot and self._inputRoot:
-            outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
 
         # Update previews:
         # - left preview: input only
         # - right preview: output only (if not found, show input again as a fallback)
         self._inputPreview.setImage(imagePath) # type: ignore
 
+        # Resolve output image path (same relative file under output root)
         outputPath = self._outputResolver.resolveOutput(imagePath, self._inputRoot)
-
         if outputPath:
             self._outputPreview.setImage(outputPath) # type: ignore
         else:
