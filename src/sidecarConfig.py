@@ -80,6 +80,26 @@ def getInputRoot() -> Optional[str]:
 
     return None
 
+def getNegativePrompt() -> Optional[str]:
+    config = _loadConfig()
+
+    # 1️⃣ Preferred: sidecarEditor section
+    sidecar = config.get("sidecarEditor", {})
+    negPrompt = sidecar.get("negativePrompt")
+    if negPrompt:
+        return negPrompt
+
+    # 2️⃣ Fallback: global comfyText2ImgBaseNegative
+    negPrompt = config.get("comfyText2ImgBaseNegative")
+    if negPrompt:
+        return negPrompt
+
+    return None
+
+def setNegativePrompt(negPrompt: str):
+    section = _getSidecarSection()
+    section["negativePrompt"] = negPrompt
+    _saveSidecarSection(section)
 
 def getOutputRoot() -> Optional[str]:
     config = _loadConfig()

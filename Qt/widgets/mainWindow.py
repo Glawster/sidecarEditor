@@ -394,6 +394,10 @@ class MainWindow(QMainWindow):
             status += " (no output image found)"
         self.statusBar().showMessage(status)
 
+    def _onSendToLingerie(self):
+        """Handle send to lingerie action."""
+        self._txtInputFolder
+
     def _onSidecarSaved(self, imagePath: str):
         """Handle sidecar saved event."""
         self.statusBar().showMessage(f"Saved sidecar for {os.path.basename(imagePath)}")

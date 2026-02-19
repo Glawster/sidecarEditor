@@ -21,6 +21,13 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
+       <widget class="QTextEdit" name="txtDescriptionPrompt">
+        <property name="placeholderText">
+         <string>Enter description...</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QGroupBox" name="grpSubject">
         <property name="title">
          <string>Subject</string>
@@ -80,6 +87,13 @@
            </property>
            <property name="placeholderText">
             <string>Enter clothing (prompt)...</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QPushButton" name="btnSendToLingerie">
+           <property name="text">
+            <string>to Lingerie</string>
            </property>
           </widget>
          </item>

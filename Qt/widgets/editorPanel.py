@@ -5,6 +5,7 @@ Editor panel widget for editing sidecar data.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Dict
 
@@ -20,10 +21,21 @@ from PySide6.QtWidgets import (
 )
 
 from src.sidecarCore import SidecarData
+from src.sidecarConfig import getNegativePrompt, setNegativePrompt
 
 
 class EditorPanel(QWidget):
     """Widget for editing sidecar prompt data."""
+
+    # note we also use "description" as a key but it is not part of FIELD_NAMES
+    FIELD_NAMES = [
+        "subject",
+        "pose",
+        "clothing",
+        "lingerie",
+        "setting",
+        "composition",
+    ]
 
     sidecarSaved = Signal(str)  # imagePath
 
@@ -55,23 +67,21 @@ class EditorPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.ui)
 
+        self._promptText: Dict[str, QTextEdit] = {}
+        self._rawText = {name: "" for name in self.FIELD_NAMES}
+
         # Positive prompt fields
-        self._subjectPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtSubjectPrompt")  # type: ignore
-        self._subjectRaw = ""
-        self._posePrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtPosePrompt")  # type: ignore
-        self._poseRaw = ""
-        self._clothingPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtClothingPrompt")  # type: ignore
-        self._clothingRaw = ""
-        self._lingeriePrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtLingeriePrompt")  # type: ignore
-        self._lingerieRaw = ""
-        self._settingPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtSettingPrompt")  # type: ignore
-        self._settingRaw = ""
-        self._compositionPrompt: QTextEdit = self.ui.findChild(QTextEdit, "txtCompositionPrompt")  # type: ignore
-        self._compositionRaw = ""
+        self._promptText["description"]: QTextEdit = self.ui.findChild(QTextEdit, "txtDescriptionPrompt")  # type: ignore
+        self._promptText["subject"]: QTextEdit = self.ui.findChild(QTextEdit, "txtSubjectPrompt")  # type: ignore
+        self._promptText["pose"]: QTextEdit = self.ui.findChild(QTextEdit, "txtPosePrompt")  # type: ignore
+        self._promptText["clothing"]: QTextEdit = self.ui.findChild(QTextEdit, "txtClothingPrompt")  # type: ignore
+        self._promptText["lingerie"]: QTextEdit = self.ui.findChild(QTextEdit, "txtLingeriePrompt")  # type: ignore
+        self._promptText["setting"]: QTextEdit = self.ui.findChild(QTextEdit, "txtSettingPrompt")  # type: ignore
+        self._promptText["composition"]: QTextEdit = self.ui.findChild(QTextEdit, "txtCompositionPrompt")  # type: ignore
 
         # Negative
-        self._negPromptEdit: QTextEdit = self.ui.findChild(QTextEdit, "txtNegativePrompt")  # type: ignore
-        self._negStyleEdit: QTextEdit = self.ui.findChild(QTextEdit, "txtNegativeStyle")  # type: ignore
+        self._negGeneralText: QTextEdit = self.ui.findChild(QTextEdit, "txtNegativePrompt")  # type: ignore
+        self._negStyleText: QTextEdit = self.ui.findChild(QTextEdit, "txtNegativeStyle")  # type: ignore
 
         # Status
         self._chkLocked: QCheckBox = self.ui.findChild(QCheckBox, "chkLocked")  # type: ignore
@@ -83,39 +93,45 @@ class EditorPanel(QWidget):
         self._revertButton: QPushButton = self.ui.findChild(QPushButton, "btnRevert")  # type: ignore
         self._generateButton: Optional[QPushButton] = self.ui.findChild(QPushButton, "btnGenerate")  # type: ignore
         self._updateRawButton: Optional[QPushButton] = self.ui.findChild(QPushButton, "btnUpdateRaw")  # type: ignore
+        self._sendToLingerieButton: Optional[QPushButton] = self.ui.findChild(QPushButton, "btnSendToLingerie")  # type: ignore
 
         missing = [
             name
             for name, w in {
-                "txtSubjectPrompt": self._subjectPrompt,
-                "txtPosePrompt": self._posePrompt,
-                "txtClothingPrompt": self._clothingPrompt,
-                "txtLingeriePrompt": self._lingeriePrompt,
-                "txtSettingPrompt": self._settingPrompt,
-                "txtCompositionPrompt": self._compositionPrompt,
-                "txtNegativePrompt": self._negPromptEdit,
-                "txtNegativeStyle": self._negStyleEdit,
+                "txtDescriptionPrompt": self._promptText["description"],
+                "txtSubjectPrompt": self._promptText["subject"],
+                "txtPosePrompt": self._promptText["pose"],
+                "txtClothingPrompt": self._promptText["clothing"],
+                "txtLingeriePrompt": self._promptText["lingerie"],
+                "txtSettingPrompt": self._promptText["setting"],
+                "txtCompositionPrompt": self._promptText["composition"],
+                "txtNegativePrompt": self._negGeneralText,
+                "txtNegativeStyle": self._negStyleText,
                 "chkLocked": self._chkLocked,
                 "chkReviewed": self._chkReviewed,
                 "txtNotes": self._txtNotes,
                 "btnSave": self._saveButton,
                 "btnRevert": self._revertButton,
+                "btnSendToLingerie": self._sendToLingerieButton,
             }.items()
             if w is None
         ]
         if missing:
-            raise RuntimeError(f"Missing widgets in editorPanel.ui: {', '.join(missing)}")
+            raise RuntimeError(
+                f"Missing widgets in editorPanel.ui: {', '.join(missing)}"
+            )
 
         # Signals
         for w in (
-            self._subjectPrompt, 
-            self._posePrompt, 
-            self._clothingPrompt, 
-            self._lingeriePrompt, 
-            self._settingPrompt, 
-            self._compositionPrompt, 
-            self._negPromptEdit, 
-            self._negStyleEdit,
+            self._promptText["description"],
+            self._promptText["subject"],
+            self._promptText["pose"],
+            self._promptText["clothing"],
+            self._promptText["lingerie"],
+            self._promptText["setting"],
+            self._promptText["composition"],
+            self._negGeneralText,
+            self._negStyleText,
             self._txtNotes,
         ):
             w.textChanged.connect(self._onContentChanged)  # type: ignore
@@ -128,9 +144,12 @@ class EditorPanel(QWidget):
 
         if self._generateButton is not None:
             self._generateButton.clicked.connect(self._onGenerate)  # type: ignore
-        
+
         if self._updateRawButton is not None:
             self._updateRawButton.clicked.connect(self._onUpdateRaw)  # type: ignore
+
+        if self._sendToLingerieButton is not None:
+            self._sendToLingerieButton.clicked.connect(self._onSendToLingerie)  # type: ignore
 
         self._saveButton.setEnabled(False)  # type: ignore
         self._revertButton.setEnabled(False)  # type: ignore
@@ -155,61 +174,38 @@ class EditorPanel(QWidget):
         except Exception:
             inputData = {}
 
-        # Fill RAW fields from input-sidecar
-        # - Subject raw: prefer positive.description
-        # - Pose raw: positive.pose.raw
-        # - Clothing raw: positive.clothing.raw
-        # - Lingerie raw: positive.lingerie.raw
-        # - Setting raw: positive.location.raw
-        # - Composition raw: positive.camera.raw
-
         self._blockAll(True)
 
-        # for each field get the prompt and raw text; if prompt is missing, fallback to 
+        # for each field get the prompt and raw text; if prompt is missing, fallback to
         # raw for the prompt field (so at least something shows up in the UI)
         # subject is a bit special since it doesn't have a dedicated raw field, so we just use the description as raw too
-        promptText = self._get(inputData, "positive.description") or ""
-        self._subjectPrompt.setPlainText(promptText)
-        self._subjectRaw = promptText  # no separate raw, so just mirror the prompt
+        positive = inputData.get("positive", {})
+        promptText = positive.get("description", "") or ""
+        self._promptText["description"].setPlainText(promptText)  # type: ignore
 
-        rawText = self._get(inputData, "positive.pose.raw") or ""
-        promptText = self._get(inputData, "positive.pose.prompt") or ""
-        if not promptText.strip():
-             promptText = rawText  # fallback to raw if prompt is missing
-        self._posePrompt.setPlainText(promptText)
-        self._poseRaw = rawText
+        for field in self.FIELD_NAMES:
+            node = positive.get(field, {}) or {}
+            rawText = node.get("raw", "") or ""
+            promptText = node.get("prompt", "") or ""
+            if not promptText.strip():
+                promptText = rawText
+            self._rawText[field] = rawText
+            self._promptText[field].setPlainText(promptText)  # type: ignore
 
-        rawText = self._get(inputData, "positive.clothing.raw") or ""
-        promptText = self._get(inputData, "positive.clothing.prompt") or ""
-        if not promptText.strip():
-             promptText = rawText  # fallback to raw if prompt is missing
-        self._clothingPrompt.setPlainText(promptText)
-        self._clothingRaw = rawText
+        # read the negative general prompt from the config file
+        #  comfyText2ImgBaseNegative
+        thisNegative = getNegativePrompt()
 
-        rawText = self._get(inputData, "positive.lingerie.raw") or ""
-        promptText = self._get(inputData, "positive.lingerie.prompt") or ""
-        if not promptText.strip():
-             promptText = rawText  # fallback to raw if prompt is missing
-        self._lingeriePrompt.setPlainText(promptText)
-        self._lingerieRaw = rawText
-
-        rawText = self._get(inputData, "positive.location.raw") or ""
-        promptText = self._get(inputData, "positive.location.prompt") or ""
-        if not promptText.strip():
-             promptText = rawText  # fallback to raw if prompt is missing
-        self._settingPrompt.setPlainText(promptText)
-        self._settingRaw = rawText
-
-        rawText = self._get(inputData, "positive.camera.raw") or ""
-        promptText = self._get(inputData, "positive.camera.prompt") or ""
-        if not promptText.strip():
-             promptText = rawText  # fallback to raw if prompt is missing
-        self._compositionPrompt.setPlainText(promptText)
-        self._compositionRaw = rawText
+        # read the negative prompt stuff too
+        negative = inputData.get("negative", {})
+        negGeneralPrompt = negative.get("general", "") or thisNegative or ""
+        negStylePrompt = negative.get("style", "") or ""
+        self._negGeneralText.setPlainText(negGeneralPrompt)
+        self._negStyleText.setPlainText(negStylePrompt)
 
         self._blockAll(False)
 
-        self._saveButton.setEnabled(True)  # type: ignore
+        self._saveButton.setEnabled(False)  # type: ignore
         self._revertButton.setEnabled(False)  # type: ignore
 
     def clear(self):
@@ -219,32 +215,29 @@ class EditorPanel(QWidget):
         self._blockAll(True)
 
         for w in (
-            self._subjectPrompt, 
-            self._posePrompt, 
-            self._clothingPrompt, 
-            self._lingeriePrompt, 
-            self._settingPrompt, 
-            self._compositionPrompt, 
-            self._negPromptEdit, 
-            self._negStyleEdit,
+            self._promptText["description"],
+            self._promptText["subject"],
+            self._promptText["pose"],
+            self._promptText["clothing"],
+            self._promptText["lingerie"],
+            self._promptText["setting"],
+            self._promptText["composition"],
+            self._negGeneralText,
+            self._negStyleText,
             self._txtNotes,
         ):
-            w.clear()
+            w.clear()  # type: ignore
 
-        self._subjectRaw = ""
-        self._poseRaw = ""
-        self._clothingRaw = ""
-        self._lingerieRaw = ""
-        self._settingRaw = ""
-        self._compositionRaw = ""
+        for field in self.FIELD_NAMES:
+            self._rawText[field] = ""
 
         self._chkLocked.setChecked(False)
         self._chkReviewed.setChecked(False)
 
-        self._blockAll(False)
-
         self._saveButton.setEnabled(False)  # type: ignore
         self._revertButton.setEnabled(False)  # type: ignore
+
+        self._blockAll(False)
 
     # ------------------------------------------------------------
     # Save / revert (kept minimal for now)
@@ -267,46 +260,56 @@ class EditorPanel(QWidget):
 
     def hasUnsavedChanges(self) -> bool:
         return self._revertButton.isEnabled()  # type: ignore
-    
+
     def saveCurrentSidecar(self) -> bool:
         """Save the currently loaded sidecar. Returns True if saved."""
-        if not self._currentSidecar:
-            return False
+        success = True
+        if self._currentSidecar:
+            try:
+                # persist baseline + per-field prompts in metadata so it survives reload
+                payload = self._currentSidecar.toDict() or {}
+                payload["generator"] = {
+                    "image source": getattr(self._currentSidecar, "imagePath", ""),
+                    "tool": "Sidecar Editor",
+                    "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                }
+                payload["positive"] = {
+                    "description": self._promptText["description"].toPlainText().strip(),  # type: ignore
+                    "subject": {"raw": self._rawText["subject"], "prompt": self._promptText["subject"].toPlainText().strip()},  # type: ignore
+                    "pose": {"raw": self._rawText["pose"], "prompt": self._promptText["pose"].toPlainText().strip()},  # type: ignore
+                    "clothing": {"raw": self._rawText["clothing"], "prompt": self._promptText["clothing"].toPlainText().strip()},  # type: ignore
+                    "lingerie": {"raw": self._rawText["lingerie"], "prompt": self._promptText["lingerie"].toPlainText().strip()},  # type: ignore
+                    "setting": {"raw": self._rawText["setting"], "prompt": self._promptText["setting"].toPlainText().strip()},  # type: ignore
+                    "composition": {"raw": self._rawText["composition"], "prompt": self._promptText["composition"].toPlainText().strip()},  # type: ignore
+                }
+                payload["negative"] = {
+                    "general": self._negGeneralText.toPlainText().strip(),  # type: ignore
+                    "style": self._negStyleText.toPlainText().strip(),  # type: ignore
+                }
+                payload["assembled"] = {
+                    "positive": self._assemblePositivePrompt(),
+                    "negative": self._assembleNegativePrompt(),
+                }
+                payload["status"] = {
+                    "locked": bool(self._chkLocked.isChecked()),
+                    "reviewed": bool(self._chkReviewed.isChecked()),
+                    "notes": self._txtNotes.toPlainText().strip(),
+                }
+                self._currentSidecar.data = payload
 
-        try:
-            # write UI -> SidecarData
-            self._currentSidecar.prompt = self._assemblePositivePrompt()
-            self._currentSidecar.negativePrompt = self._assembleNegativePrompt()
+                # save to disk
+                self._saveSidecar(self._currentSidecar, createBackup=True)
 
-            # persist baseline + per-field prompts in metadata so it survives reload
-            md = self._currentSidecar.metadata or {}
-            md["fields"] = {
-                "subject": {"raw": self._subjectRaw, "prompt": self._subjectPrompt.toPlainText().strip()},
-                "pose": {"raw": self._poseRaw, "prompt": self._posePrompt.toPlainText().strip()},
-                "clothing": {"raw": self._clothingRaw, "prompt": self._clothingPrompt.toPlainText().strip()},
-                "lingerie": {"raw": self._lingerieRaw, "prompt": self._lingeriePrompt.toPlainText().strip()},
-                "setting": {"raw": self._settingRaw, "prompt": self._settingPrompt.toPlainText().strip()},
-                "composition": {"raw": self._compositionRaw, "prompt": self._compositionPrompt.toPlainText().strip()},
-            }
-            md["status"] = {
-                "locked": bool(self._chkLocked.isChecked()),
-                "reviewed": bool(self._chkReviewed.isChecked()),
-                "notes": self._txtNotes.toPlainText().strip(),
-            }
-            self._currentSidecar.metadata = md
+                self._revertButton.setEnabled(False)  # type: ignore
+                self._saveButton.setEnabled(False)  # type: ignore
+                self.sidecarSaved.emit(getattr(self._currentSidecar, "imagePath", ""))
 
-            # save to disk
-            self._saveSidecar(self._currentSidecar, createBackup=True)
-
-            self._revertButton.setEnabled(False)  # type: ignore
-            self.sidecarSaved.emit(getattr(self._currentSidecar, "imagePath", ""))
-
-            return True
-
-        except Exception as e:
-            QMessageBox.critical(self, "Save Error", f"Failed to save sidecar:\n{e}")
-            return False
-
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Save Error", f"Failed to save sidecar:\n{e}"
+                )
+                success = False
+        return success
 
     # ------------------------------------------------------------
     # Events
@@ -314,6 +317,7 @@ class EditorPanel(QWidget):
 
     def _onContentChanged(self):
         if self._currentSidecar:
+            self._saveButton.setEnabled(True)  # type: ignore
             self._revertButton.setEnabled(True)  # type: ignore
 
     def _onGenerate(self):
@@ -322,19 +326,28 @@ class EditorPanel(QWidget):
     def _onSave(self):
         self.saveCurrentSidecar()
 
-    def _onRevert(self):
-        if not self._currentSidecar:
-            return
+    def _onSendToLingerie(self):
+        if self._currentSidecar:
+            # copy current positive prompt to lingerie prompt
+            self._promptText["lingerie"].setPlainText(self._promptText["clothing"].toPlainText())  # type: ignore
+            self._promptText["clothing"].clear()  # type: ignore
 
-        self._blockAll(True)
-        self._subjectPrompt.setPlainText(self._subjectRaw or "")
-        self._posePrompt.setPlainText(self._poseRaw or "")
-        self._clothingPrompt.setPlainText(self._clothingRaw or "")
-        self._lingeriePrompt.setPlainText(self._lingerieRaw or "")
-        self._settingPrompt.setPlainText(self._settingRaw or "")
-        self._compositionPrompt.setPlainText(self._compositionRaw or "")
-        self._blockAll(False)
-        self._revertButton.setEnabled(False)
+            self._rawText["lingerie"] = self._rawText["clothing"]  # type: ignore
+            self._rawText["clothing"] = ""  # type: ignore
+            self._onContentChanged()  # mark as changed so user can save if they want
+
+    def _onRevert(self):
+        if self._currentSidecar:
+            self._blockAll(True)
+            self._promptText["subject"].setPlainText(self._rawText["subject"] or "")  # type: ignore
+            self._promptText["pose"].setPlainText(self._rawText["pose"] or "")  # type: ignore
+            self._promptText["clothing"].setPlainText(self._rawText["clothing"] or "")  # type: ignore
+            self._promptText["lingerie"].setPlainText(self._rawText["lingerie"] or "")  # type: ignore
+            self._promptText["setting"].setPlainText(self._rawText["setting"] or "")  # type: ignore
+            self._promptText["composition"].setPlainText(self._rawText["composition"] or "")  # type: ignore
+            self._revertButton.setEnabled(False)  # type: ignore
+            self._saveButton.setEnabled(True)  # type: ignore - user can still save after revert if they want
+            self._blockAll(False)
 
     def _onUpdateRaw(self):
         """
@@ -342,28 +355,22 @@ class EditorPanel(QWidget):
         This does NOT save to disk by itself — it just updates the baseline
         so you can continue editing and use Revert meaningfully.
         """
-        if not self._currentSidecar:
-            return
+        if self._currentSidecar:
 
-        reply = QMessageBox.question(
-            self,
-            "Update Raw",
-            "Set the current prompt fields as the new baseline?",
-            QMessageBox.Yes | QMessageBox.No,  # type: ignore
-            QMessageBox.No,  # type: ignore
-        )
-        if reply != QMessageBox.Yes:  # type: ignore
-            return
+            reply = QMessageBox.question(
+                self,
+                "Update Raw",
+                "Set the current prompt fields as the new baseline?",
+                QMessageBox.Yes | QMessageBox.No,  # type: ignore
+                QMessageBox.No,  # type: ignore
+            )
+            if reply == QMessageBox.Yes:  # type: ignore
+                for field in self.FIELD_NAMES:
+                    self._rawText[field] = self._promptText[field].toPlainText().strip()  # type: ignore
 
-        self._subjectRaw = self._subjectPrompt.toPlainText().strip()
-        self._poseRaw = self._posePrompt.toPlainText().strip()
-        self._clothingRaw = self._clothingPrompt.toPlainText().strip()
-        self._lingerieRaw = self._lingeriePrompt.toPlainText().strip()
-        self._settingRaw = self._settingPrompt.toPlainText().strip()
-        self._compositionRaw = self._compositionPrompt.toPlainText().strip()
-
-        # baseline updated, so there are no longer "unsaved changes" relative to baseline
-        self._revertButton.setEnabled(False)  # type: ignore
+                # baseline updated, so there are no longer "unsaved changes" relative to baseline
+                self._revertButton.setEnabled(False)  # type: ignore
+                self._saveButton.setEnabled(True)  # type: ignore - user can still save after updating raw if they want
 
     # ------------------------------------------------------------
     # Helpers
@@ -372,24 +379,18 @@ class EditorPanel(QWidget):
     def _assembleNegativePrompt(self) -> str:
         # Simple comma-join of negative prompt and style (you can tune ordering later)
         parts = [
-            self._negPromptEdit.toPlainText().strip(),
-            self._negStyleEdit.toPlainText().strip(),
+            self._negGeneralText.toPlainText().strip(),
+            self._negStyleText.toPlainText().strip(),
         ]
         parts = [p for p in parts if p]
         return ", ".join(parts)
 
     def _assemblePositivePrompt(self) -> str:
         # Simple comma-join of non-empty fields (you can tune ordering later)
-        parts = [
-            self._subjectPrompt.toPlainText().strip(),
-            self._posePrompt.toPlainText().strip(),
-            self._clothingPrompt.toPlainText().strip(),
-            self._lingeriePrompt.toPlainText().strip(),
-            self._settingPrompt.toPlainText().strip(),
-            self._compositionPrompt.toPlainText().strip(),
-        ]
-        parts = [p for p in parts if p]
-        return ", ".join(parts)
+        assembledPrompt = ""
+        for field in self.FIELD_NAMES:
+            assembledPrompt = ", ".join([self._promptText.get(field).toPlainText().strip(),]).strip()  # type: ignore
+        return assembledPrompt
 
     def _backupFile(self, path: Path) -> None:
         if path.exists():
@@ -398,14 +399,15 @@ class EditorPanel(QWidget):
 
     def _blockAll(self, blocked: bool):
         for w in (
-            self._subjectPrompt, 
-            self._posePrompt, 
-            self._clothingPrompt, 
-            self._lingeriePrompt, 
-            self._settingPrompt, 
-            self._compositionPrompt, 
-            self._negPromptEdit, 
-            self._negStyleEdit,
+            self._promptText.get("description"),
+            self._promptText.get("subject"),
+            self._promptText.get("pose"),
+            self._promptText.get("clothing"),
+            self._promptText.get("lingerie"),
+            self._promptText.get("setting"),
+            self._promptText.get("composition"),
+            self._negGeneralText,
+            self._negStyleText,
             self._txtNotes,
         ):
             w.blockSignals(blocked)  # type: ignore
@@ -417,8 +419,7 @@ class EditorPanel(QWidget):
         """
         Try a few common patterns:
         - alongside image: <stem>.prompt.json (we want this one to be the default if it exists, since it's the most explicit and specific to the image)
-        - alongside image: <filename>.prompt.json (e.g. clothed-142.png.prompt.json)
-        - same folder: input.prompt.json
+        - alongside image: <filename>.prompt.json (e.g. clothed-142.prompt.json)
         """
         if not imagePath:
             return None
@@ -427,7 +428,6 @@ class EditorPanel(QWidget):
         candidates = [
             p.with_suffix(".prompt.json"),
             Path(str(p) + ".prompt.json"),
-            p.parent / "input.prompt.json",
         ]
         filename = p.with_suffix(".prompt.json")  # fallback to standard alongside path
         for c in candidates:
@@ -435,19 +435,7 @@ class EditorPanel(QWidget):
                 filename = c
                 break
 
-        return filename 
-
-    def _get(self, obj: Dict[str, Any], dottedPath: str) -> Any:
-        """
-        Safe dotted getter for dicts.
-        Example: _get(data, "positive.pose.raw")
-        """
-        cur: Any = obj
-        for part in dottedPath.split("."):
-            if not isinstance(cur, dict):
-                return None
-            cur = cur.get(part)
-        return cur
+        return filename
 
     def _readJson(self, path: Path) -> Dict[str, Any]:
         try:
@@ -468,16 +456,16 @@ class EditorPanel(QWidget):
         sidecarPath = self._findSidecarPath(sidecar.imagePath)
 
         # Create backup if file exists
-        if createBackup and sidecarPath.exists(): # type: ignore
+        if createBackup and sidecarPath.exists():  # type: ignore
             backupPath = Path(str(sidecarPath) + ".bak")
             try:
-                backupPath.write_bytes(sidecarPath.read_bytes()) # type: ignore
+                backupPath.write_bytes(sidecarPath.read_bytes())  # type: ignore
             except IOError as e:
                 print(f"Warning: Could not create backup {backupPath}: {e}")
 
         # Save the sidecar
         try:
-            with open(sidecarPath, "w", encoding="utf-8") as f: # type: ignore
+            with open(sidecarPath, "w", encoding="utf-8") as f:  # type: ignore
                 json.dump(sidecar.toDict(), f, indent=2, ensure_ascii=False)
         except IOError as e:
             print(f"Error: Could not save sidecar {sidecarPath}: {e}")

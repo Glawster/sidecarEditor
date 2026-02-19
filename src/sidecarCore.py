@@ -9,59 +9,20 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
 @dataclass
 class SidecarData:
-    """Represents a prompt sidecar file."""
-
     imagePath: str
-    prompt: str = ""
-    negativePrompt: str = ""
-    tags: Optional[List[str]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    data: Dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
-        if self.tags is None:
-            self.tags = []
-        if self.metadata is None:
-            self.metadata = {}
+    @staticmethod
+    def fromDict(imagePath: str, d: Optional[Dict[str, Any]]) -> "SidecarData":
+        return SidecarData(imagePath=imagePath, data=(d or {}))
 
     def toDict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "prompt": self.prompt,
-            "negative_prompt": self.negativePrompt,
-            "tags": self.tags,
-            "metadata": self.metadata,
-        }
-
-    @classmethod
-    def fromDict(cls, imagePath: str, data: Dict[str, Any]) -> "SidecarData":
-        """Create SidecarData from dictionary."""
-        return cls(
-            imagePath=imagePath,
-            prompt=data.get("prompt", ""),
-            negativePrompt=data.get("negative_prompt", ""),
-            tags=data.get("tags", []),
-            metadata=data.get("metadata", {}),
-        )
-
-
-def getSidecarPath(imagePath: str) -> Path:
-    """
-    Get the sidecar file path for an image.
-
-    Args:
-        imagePath: Path to the image file
-
-    Returns:
-        Path to the sidecar file
-    """
-    imgPath = Path(imagePath)
-    # drop extension from image name and add .prompt.json
-    baseName = imgPath.stem
-    return imgPath.parent / f"{baseName}.prompt.json"
-
+        return self.data
 
 def scanImages(rootPath: str, extensions: Optional[List[str]] = None) -> List[str]:
     """
@@ -92,26 +53,3 @@ def scanImages(rootPath: str, extensions: Optional[List[str]] = None) -> List[st
 
     return sorted(images)
 
-
-def assemblePrompt(sidecar: SidecarData) -> str:
-    """
-    Assemble the full prompt text from sidecar data.
-    Currently just returns the prompt field, but could be extended
-    to include tags or other elements.
-
-    Args:
-        sidecar: SidecarData object
-
-    Returns:
-        Assembled prompt string
-    """
-    parts = []
-
-    if sidecar.prompt:
-        parts.append(sidecar.prompt)
-
-    if sidecar.tags:
-        tagsStr = ", ".join(sidecar.tags)
-        parts.append(f"Tags: {tagsStr}")
-
-    return "\n\n".join(parts)
