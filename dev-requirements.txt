@@ -1,3 +1,5 @@
 black
 pytest
+pytest-qt
+pytest-cov
 pre-commit
