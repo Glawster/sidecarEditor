@@ -5,6 +5,8 @@ Editor panel widget for editing sidecar data.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Optional, Dict
 
@@ -19,13 +21,15 @@ from PySide6.QtWidgets import (
     QPushButton,
 )
 
+import src.sidecarConfig as sidecarConfig
 from src.sidecarCore import SidecarData, saveSidecar
 
 
 class EditorPanel(QWidget):
     """Widget for editing sidecar prompt data."""
 
-    sidecarSaved = Signal(str)  # imagePath
+    sidecarSaved = Signal(str)   # imagePath
+    generateStarted = Signal(str)  # status message
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -247,7 +251,37 @@ class EditorPanel(QWidget):
             self._revertButton.setEnabled(True)  # type: ignore
 
     def _onGenerate(self):
-        QMessageBox.information(self, "Generate", "Generate is not wired yet.")
+
+        scriptPath = sidecarConfig.getTxt2ImgScriptPath()
+        if not scriptPath:
+            QMessageBox.information(
+                self,
+                "Generate",
+                "txt2imgComfy.py is not configured.\n\n"
+                "Set 'txt2ImgScriptPath' in your kohyaConfig.json to the path of\n"
+                "txt2imgComfy.py from the linuxMigration repository.",
+            )
+            return
+
+        if not Path(scriptPath).exists():
+            QMessageBox.warning(
+                self,
+                "Generate",
+                f"Script not found:\n{scriptPath}\n\n"
+                "Check 'txt2ImgScriptPath' in your kohyaConfig.json.",
+            )
+            return
+
+        comfyUrl = sidecarConfig.getComfyUrl()
+        cmd = [sys.executable, scriptPath]
+        if comfyUrl:
+            cmd += ["--local", comfyUrl]
+
+        try:
+            subprocess.Popen(cmd, shell=False)  # non-blocking: script runs in background
+            self.generateStarted.emit(f"Generation started: {Path(scriptPath).name}")
+        except OSError as e:
+            QMessageBox.critical(self, "Generate Error", f"Failed to start generation:\n{e}")
 
     def _onSave(self):
         self.saveCurrentSidecar()

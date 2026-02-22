@@ -236,6 +236,7 @@ class MainWindow(QMainWindow):
         self._thumbnailList.imageSelected.connect(self._onImageSelected)
         self._thumbnailList.thumbnailsLoaded.connect(self._onThumbnailsLoaded)
         self._editorPanel.sidecarSaved.connect(self._onSidecarSaved)
+        self._editorPanel.generateStarted.connect(self._onGenerateStarted)
 
     def _onOk(self):
         if self._editorPanel.hasUnsavedChanges():
@@ -404,6 +405,10 @@ class MainWindow(QMainWindow):
     def _onSidecarSaved(self, imagePath: str):
         """Handle sidecar saved event."""
         self.statusBar().showMessage(f"Saved sidecar for {os.path.basename(imagePath)}")
+
+    def _onGenerateStarted(self, message: str):
+        """Handle generate started event."""
+        self.statusBar().showMessage(message)
 
     def _onAbout(self):
         """Show about dialog."""

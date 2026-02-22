@@ -170,6 +170,57 @@ def setLastSelectedImage(path: str):
     _saveSidecarSection(section)
 
 
+def getTxt2ImgScriptPath() -> Optional[str]:
+    """
+    Get the path to the txt2imgComfy.py script from linuxMigration repo.
+
+    Returns:
+        Path string or None if not configured
+    """
+    section = _getSidecarSection()
+    return section.get("txt2ImgScriptPath")
+
+
+def setTxt2ImgScriptPath(path: str):
+    """
+    Set the path to the txt2imgComfy.py script.
+
+    Args:
+        path: Absolute path to txt2imgComfy.py
+    """
+    section = _getSidecarSection()
+    section["txt2ImgScriptPath"] = path
+    _saveSidecarSection(section)
+
+
+def getComfyUrl() -> Optional[str]:
+    """
+    Get the ComfyUI base URL.  Prefers the sidecarEditor section;
+    falls back to the global 'comfyUrl' key.
+
+    Returns:
+        URL string or None if not configured
+    """
+    config = _loadConfig()
+    sidecar = config.get("sidecarEditor", {})
+    url = sidecar.get("comfyUrl")
+    if url:
+        return url
+    return config.get("comfyUrl") or None
+
+
+def setComfyUrl(url: str):
+    """
+    Set the ComfyUI base URL in the sidecarEditor config section.
+
+    Args:
+        url: ComfyUI base URL (e.g. http://127.0.0.1:8188)
+    """
+    section = _getSidecarSection()
+    section["comfyUrl"] = url
+    _saveSidecarSection(section)
+
+
 def getAllSettings() -> dict:
     """
     Get all sidecar editor settings.
