@@ -259,7 +259,9 @@ class EditorPanel(QWidget):
                 "Generate",
                 "txt2imgComfy.py is not configured.\n\n"
                 "Set 'txt2ImgScriptPath' in your kohyaConfig.json to the path of\n"
-                "txt2imgComfy.py from the linuxMigration repository.",
+                "txt2imgComfy.py from the linuxMigration repository.\n\n"
+                "Also set your RunPod Pod ID via the 'Set RunPod ID' button in the\n"
+                "top bar (the preferred way to connect to ComfyUI).",
             )
             return
 
@@ -272,10 +274,27 @@ class EditorPanel(QWidget):
             )
             return
 
+        # RunPod is the preferred remote target; fall back to a local URL if set.
+        runpodPodId = sidecarConfig.getRunpodPodId()
         comfyUrl = sidecarConfig.getComfyUrl()
         cmd = [sys.executable, scriptPath]
-        if comfyUrl:
+        if runpodPodId:
+            cmd += ["--remote", runpodPodId]
+        elif comfyUrl:
             cmd += ["--local", comfyUrl]
+        else:
+            reply = QMessageBox.question(
+                self,
+                "Generate",
+                "No RunPod Pod ID or ComfyUI URL is configured.\n\n"
+                "Set a RunPod Pod ID via the 'Set RunPod ID' button in the top bar,\n"
+                "or add 'comfyUrl' to your kohyaConfig.json.\n\n"
+                "Proceed anyway (using the script's own config)?",
+                QMessageBox.Yes | QMessageBox.No,  # type: ignore
+                QMessageBox.No,  # type: ignore
+            )
+            if reply != QMessageBox.Yes:  # type: ignore
+                return
 
         try:
             subprocess.Popen(cmd, shell=False)  # non-blocking: script runs in background

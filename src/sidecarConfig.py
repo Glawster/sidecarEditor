@@ -170,6 +170,36 @@ def setLastSelectedImage(path: str):
     _saveSidecarSection(section)
 
 
+def getRunpodPodId() -> Optional[str]:
+    """
+    Get the RunPod Pod ID for the remote ComfyUI server.
+    This is the primary/preferred way to connect to ComfyUI.
+    The Pod ID is used to build the proxy URL:
+        https://{podId}-8188.proxy.runpod.net
+
+    Returns:
+        RunPod Pod ID string or None if not configured
+    """
+    config = _loadConfig()
+    sidecar = config.get("sidecarEditor", {})
+    podId = sidecar.get("runpodPodId")
+    if podId:
+        return podId
+    return config.get("runpodPodId") or None
+
+
+def setRunpodPodId(podId: str):
+    """
+    Set the RunPod Pod ID for the remote ComfyUI server.
+
+    Args:
+        podId: RunPod Pod ID (e.g. abc123xyz)
+    """
+    section = _getSidecarSection()
+    section["runpodPodId"] = podId
+    _saveSidecarSection(section)
+
+
 def getTxt2ImgScriptPath() -> Optional[str]:
     """
     Get the path to the txt2imgComfy.py script from linuxMigration repo.
