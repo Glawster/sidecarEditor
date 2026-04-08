@@ -344,6 +344,68 @@ def set_last_selected_image(path: str)
 
 Get or set the last selected image path.
 
+#### get_runpod_pod_id / set_runpod_pod_id
+
+```python
+def getRunpodPodId() -> Optional[str]
+def setRunpodPodId(podId: str)
+```
+
+Get or set the RunPod Pod ID for the remote ComfyUI server.  
+The Pod ID is used to build the RunPod proxy URL:
+`https://{podId}-8188.proxy.runpod.net`
+
+`getRunpodPodId` checks `sidecarEditor.runpodPodId` first, then falls back to the global `runpodPodId` key.
+
+**Example:**
+
+```python
+from src.sidecarConfig import getRunpodPodId, setRunpodPodId
+
+setRunpodPodId("abc123xyz")
+pod_id = getRunpodPodId()  # "abc123xyz"
+```
+
+#### get_txt2_img_script_path / set_txt2_img_script_path
+
+```python
+def getTxt2ImgScriptPath() -> Optional[str]
+def setTxt2ImgScriptPath(path: str)
+```
+
+Get or set the absolute path to `txt2imgComfy.py` from the
+[linuxMigration](https://github.com/Glawster/linuxMigration) repository.
+Required for the Generate button.
+
+**Example:**
+
+```python
+from src.sidecarConfig import getTxt2ImgScriptPath, setTxt2ImgScriptPath
+
+setTxt2ImgScriptPath("/home/user/linuxMigration/kohyaTools/txt2imgComfy.py")
+path = getTxt2ImgScriptPath()
+```
+
+#### get_comfy_url / set_comfy_url
+
+```python
+def getComfyUrl() -> Optional[str]
+def setComfyUrl(url: str)
+```
+
+Get or set the local ComfyUI base URL.  Used as a fallback when no RunPod Pod ID
+is configured.  `getComfyUrl` checks `sidecarEditor.comfyUrl` first, then falls
+back to the global `comfyUrl` key.
+
+**Example:**
+
+```python
+from src.sidecarConfig import getComfyUrl, setComfyUrl
+
+setComfyUrl("http://127.0.0.1:8188")
+url = getComfyUrl()
+```
+
 #### get_all_settings / set_all_settings
 
 ```python
@@ -450,7 +512,8 @@ Widget for editing sidecar prompt data.
 
 ```python
 class EditorPanel(QWidget):
-    sidecarSaved = Signal(str)  # Emitted when sidecar is saved
+    sidecarSaved = Signal(str)    # Emitted when sidecar is saved
+    generateStarted = Signal(str) # Emitted when generation is launched
     
     def __init__(self, parent=None)
 ```
@@ -463,6 +526,8 @@ class EditorPanel(QWidget):
 
 **Signals:**
 - `sidecarSaved(str)`: Emitted when sidecar is saved (with image_path)
+- `generateStarted(str)`: Emitted when the Generate button launches `txt2imgComfy.py`
+  (carries a short status message shown in the main window status bar)
 
 **Example:**
 
@@ -527,7 +592,10 @@ Configuration is stored in `~/.config/kohya/kohyaConfig.json`:
       "y": 100,
       "width": 1200,
       "height": 800
-    }
+    },
+    "runpodPodId": "abc123xyz",
+    "txt2ImgScriptPath": "/home/user/linuxMigration/kohyaTools/txt2imgComfy.py",
+    "comfyUrl": "http://127.0.0.1:8188"
   }
 }
 ```

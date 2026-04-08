@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QSplitter,
     QFileDialog,
+    QInputDialog,
     QMessageBox,
     QLineEdit,
     QPushButton,
@@ -111,17 +112,23 @@ class MainWindow(QMainWindow):
         # top bar controls
         self._btnSetInput = loadedCentral.findChild(QPushButton, "btnSetInput")
         self._btnSetOutput = loadedCentral.findChild(QPushButton, "btnSetOutput")
+        self._btnSetRunpodId = loadedCentral.findChild(QPushButton, "btnSetRunpodId")
         if self._btnSetInput is None:
             raise RuntimeError("Missing widget in mainwindow.ui: btnSetInput")
         if self._btnSetOutput is None:
             raise RuntimeError("Missing widget in mainwindow.ui: btnSetOutput")
+        if self._btnSetRunpodId is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: btnSetRunpodId")
 
         self._txtInputFolder = loadedCentral.findChild(QLineEdit, "txtInputFolder")
         self._txtOutputFolder = loadedCentral.findChild(QLineEdit, "txtOutputFolder")
+        self._txtRunpodPodId = loadedCentral.findChild(QLineEdit, "txtRunpodPodId")
         if self._txtInputFolder is None:
             raise RuntimeError("Missing widget in mainwindow.ui: txtInputFolder")
         if self._txtOutputFolder is None:
             raise RuntimeError("Missing widget in mainwindow.ui: txtOutputFolder")
+        if self._txtRunpodPodId is None:
+            raise RuntimeError("Missing widget in mainwindow.ui: txtRunpodPodId")
 
         # actions
         self._actionSetInput = self._loadedWindow.findChild(QAction, "actionSetInput")
@@ -212,7 +219,8 @@ class MainWindow(QMainWindow):
         """Connect UI signals to slots."""
         # Buttons
         self._btnSetInput.clicked.connect(self._onSetInputFolder)  
-        self._btnSetOutput.clicked.connect(self._onSetOutputFolder) 
+        self._btnSetOutput.clicked.connect(self._onSetOutputFolder)
+        self._btnSetRunpodId.clicked.connect(self._onSetRunpodId)
 
         # Menu actions
         if self._actionSetInput:
@@ -236,6 +244,7 @@ class MainWindow(QMainWindow):
         self._thumbnailList.imageSelected.connect(self._onImageSelected)
         self._thumbnailList.thumbnailsLoaded.connect(self._onThumbnailsLoaded)
         self._editorPanel.sidecarSaved.connect(self._onSidecarSaved)
+        self._editorPanel.generateStarted.connect(self._onGenerateStarted)
 
     def _onOk(self):
         if self._editorPanel.hasUnsavedChanges():
@@ -268,6 +277,10 @@ class MainWindow(QMainWindow):
         outputRoot = sidecarConfig.getOutputRoot()
         if outputRoot:
             self._setOutputRoot(outputRoot)
+
+        runpodPodId = sidecarConfig.getRunpodPodId()
+        if runpodPodId:
+            self._setRunpodPodId(runpodPodId)
 
         # Apply default region sizing AFTER geometry restore (prevents "ignored" sizing)
         QTimer.singleShot(0, self._applyRegionDefaults)
@@ -329,6 +342,29 @@ class MainWindow(QMainWindow):
         self._txtOutputFolder.setStyleSheet("")  # type: ignore
         self._outputResolver.setOutputRoot(path)
         sidecarConfig.setOutputRoot(path)
+
+    def _setRunpodPodId(self, podId: str):
+        """Set the RunPod Pod ID."""
+        self._txtRunpodPodId.setText(podId)  # type: ignore
+        sidecarConfig.setRunpodPodId(podId)
+
+    def _onSetRunpodId(self):
+        """Prompt the user to enter the RunPod Pod ID."""
+        current = sidecarConfig.getRunpodPodId() or ""
+        podId, ok = QInputDialog.getText(
+            self,
+            "Set RunPod Pod ID",
+            "Enter your RunPod Pod ID\n(found in the RunPod console URL):",
+            text=current,
+        )
+        if ok:
+            stripped = podId.strip()
+            if stripped:
+                self._setRunpodPodId(stripped)
+            else:
+                # Clear the Pod ID when user submits an empty value
+                self._txtRunpodPodId.setText("")  # type: ignore
+                sidecarConfig.setRunpodPodId("")
 
     def _scanImages(self):
         """Scan the input folder for images."""
@@ -404,6 +440,10 @@ class MainWindow(QMainWindow):
     def _onSidecarSaved(self, imagePath: str):
         """Handle sidecar saved event."""
         self.statusBar().showMessage(f"Saved sidecar for {os.path.basename(imagePath)}")
+
+    def _onGenerateStarted(self, message: str):
+        """Handle generate started event."""
+        self.statusBar().showMessage(message)
 
     def _onAbout(self):
         """Show about dialog."""

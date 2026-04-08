@@ -113,6 +113,10 @@ If set, you can toggle between original and output images.
 - **Revert Changes**: Discards unsaved changes
   - Reloads the original sidecar data
   - Asks for confirmation
+- **Generate Output**: Triggers image generation via ComfyUI
+  - Requires `txt2imgComfy.py` to be configured (see [Generating Images](#generating-images))
+  - Launches the script as a background process (non-blocking)
+  - Status bar shows "Generation started" when launched
 
 ### 5. Understanding Sidecar Files
 
@@ -209,6 +213,77 @@ The status bar at the bottom shows:
 2. Standardize formatting
 3. Add negative prompts where missing
 4. Ensure consistency across images
+
+## Generating Images
+
+The **Generate Output** button in the editor panel triggers `txt2imgComfy.py` from the
+[linuxMigration](https://github.com/Glawster/linuxMigration) repository.  The script
+reads prompt sidecars and submits them to a running ComfyUI instance.
+
+### One-time Setup
+
+**Step 1 — Locate txt2imgComfy.py**
+
+Clone or pull the linuxMigration repository, then note the absolute path:
+```
+/home/user/linuxMigration/kohyaTools/txt2imgComfy.py
+```
+
+**Step 2 — Add the path to kohyaConfig.json**
+
+Edit `~/.config/kohya/kohyaConfig.json` and add under `"sidecarEditor"`:
+```json
+{
+  "sidecarEditor": {
+    "txt2ImgScriptPath": "/home/user/linuxMigration/kohyaTools/txt2imgComfy.py"
+  }
+}
+```
+
+**Step 3 — Set your RunPod Pod ID (preferred)**
+
+1. Start your ComfyUI pod on [RunPod](https://runpod.io)
+2. Copy the Pod ID from the RunPod console (e.g. `abc123xyz`)
+3. Click the **Set RunPod ID** button in the top bar of Sidecar Editor
+4. Enter the Pod ID and click OK
+
+The Pod ID is saved and restored automatically on the next launch.
+
+The script builds the proxy URL `https://{podId}-8188.proxy.runpod.net` automatically.
+
+**Alternative — Local ComfyUI**
+
+If you run ComfyUI locally instead of on RunPod, add the URL to your config:
+```json
+{
+  "sidecarEditor": {
+    "txt2ImgScriptPath": "...",
+    "comfyUrl": "http://127.0.0.1:8188"
+  }
+}
+```
+
+### How Generation Works
+
+When you click **Generate Output**:
+
+1. The editor validates that `txt2imgComfy.py` is configured and the file exists.
+2. The connection target is selected in this priority order:
+   - **RunPod Pod ID** (via `--remote <podId>`) — preferred
+   - **Local ComfyUI URL** (via `--local <url>`) — fallback
+   - Neither set → a confirmation dialog is shown before proceeding
+3. The script is launched as a **non-blocking background process**.  You can
+   continue using Sidecar Editor while images are being generated.
+4. The status bar shows "Generation started: txt2imgComfy.py".
+
+### Troubleshooting Generate
+
+| Problem | Solution |
+|---------|----------|
+| "txt2imgComfy.py is not configured" | Add `txt2ImgScriptPath` to kohyaConfig.json |
+| "Script not found" | Check the path in kohyaConfig.json is correct |
+| No RunPod Pod ID or URL configured | Click "Set RunPod ID" or add `comfyUrl` to config |
+| Generation fails silently | Check the terminal/log for errors from `txt2imgComfy.py` |
 
 ## Tips and Best Practices
 
@@ -308,7 +383,10 @@ You can edit this file directly if needed:
       "y": 100,
       "width": 1200,
       "height": 800
-    }
+    },
+    "runpodPodId": "abc123xyz",
+    "txt2ImgScriptPath": "/home/user/linuxMigration/kohyaTools/txt2imgComfy.py",
+    "comfyUrl": "http://127.0.0.1:8188"
   }
 }
 ```

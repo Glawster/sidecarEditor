@@ -294,6 +294,46 @@ sidecarConfig.set_window_geometry(geometry)
 - All settings under `"sidecarEditor"` key
 - Integrates with existing kohyaConfig ecosystem
 
+### ComfyUI / RunPod Generation Config Keys
+
+The following keys live under `"sidecarEditor"` and support the Generate button:
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `txt2ImgScriptPath` | string | Absolute path to `txt2imgComfy.py` from linuxMigration repo |
+| `runpodPodId` | string | RunPod Pod ID (primary target — expands to proxy URL) |
+| `comfyUrl` | string | Local ComfyUI base URL (fallback when no Pod ID is set) |
+
+`getRunpodPodId()` and `getComfyUrl()` both check `sidecarEditor.*` first, then fall back to the matching global config key.
+
+### Launching External Scripts (subprocess pattern)
+
+When triggering an external tool (e.g. `txt2imgComfy.py`) from the UI layer, always use
+`subprocess.Popen` with `shell=False` for a non-blocking background launch:
+
+```python
+import subprocess
+import sys
+
+cmd = [sys.executable, scriptPath]
+if runpodPodId:
+    cmd += ["--remote", runpodPodId]
+elif comfyUrl:
+    cmd += ["--local", comfyUrl]
+
+try:
+    subprocess.Popen(cmd, shell=False)   # non-blocking
+    self.generateStarted.emit(f"Generation started: {Path(scriptPath).name}")
+except OSError as e:
+    QMessageBox.critical(self, "Error", f"Failed to start:\n{e}")
+```
+
+Key rules:
+- Always `shell=False` (explicit and safer)
+- Catch `OSError`, not bare `Exception`
+- Emit a signal after launch so the main window can update the status bar
+- Do NOT block the UI thread — never call `.wait()` or `.communicate()` in a slot
+
 ## Sidecar File Conventions
 
 ### File Naming
