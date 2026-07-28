@@ -108,6 +108,9 @@ sidecarEditor/
 - `get_output_root()` / `set_output_root(path)`: Output folder management
 - `get_window_geometry()` / `set_window_geometry(...)`: Window state persistence
 - `get_last_selected_image()` / `set_last_selected_image(path)`: Selection state
+- `getRunpodPodId()` / `setRunpodPodId(podId)`: RunPod Pod ID for ComfyUI generation
+- `getTxt2ImgScriptPath()` / `setTxt2ImgScriptPath(path)`: Path to txt2imgComfy.py
+- `getComfyUrl()` / `setComfyUrl(url)`: Local ComfyUI URL (fallback)
 
 **Dependencies**: Uses kohyaConfig.py pattern (currently placeholder implementation)
 
@@ -120,13 +123,14 @@ sidecarEditor/
 **Features**:
 - Horizontal splitter: thumbnail list | (preview + editor)
 - Menu bar with File and Help menus
-- Path display and folder selection
+- Path display and folder selection (input, output, RunPod Pod ID)
 - Status bar for user feedback
-- State persistence (window geometry, paths, selection)
+- State persistence (window geometry, paths, RunPod Pod ID, selection)
 
 **Signals Used**:
 - `imageSelected` from ThumbnailList
 - `sidecarSaved` from EditorPanel
+- `generateStarted` from EditorPanel
 
 ### ThumbnailList Widget
 
@@ -150,15 +154,17 @@ sidecarEditor/
 
 ### EditorPanel Widget
 
-**Purpose**: Edit sidecar prompt data
+**Purpose**: Edit sidecar prompt data and trigger image generation
 
 **Features**:
 - Prompt text editor
 - Negative prompt text editor
 - Save button (creates backup)
 - Revert button (discard changes)
+- **Generate Output button** (launches `txt2imgComfy.py` via subprocess)
 - Unsaved changes tracking
 - Emits `sidecarSaved` signal
+- Emits `generateStarted` signal
 
 ## Data Flow
 
@@ -196,6 +202,26 @@ EditorPanel emits sidecarSaved signal
 MainWindow receives signal and updates status
 ```
 
+### Generating Images (ComfyUI / RunPod)
+
+```
+User clicks "Generate Output"
+  ↓
+EditorPanel reads txt2ImgScriptPath from sidecarConfig
+  ↓
+EditorPanel reads runpodPodId (primary) or comfyUrl (fallback) from sidecarConfig
+  ↓
+subprocess.Popen([python, txt2imgComfy.py, --remote <podId>])   (non-blocking)
+  ↓
+EditorPanel emits generateStarted(message)
+  ↓
+MainWindow receives signal and shows status bar message
+```
+
+`txt2imgComfy.py` (from linuxMigration repo) runs independently, reading
+`.prompt.json` sidecars from the configured input directory and submitting
+workflows to the ComfyUI API.
+
 ## Configuration Storage
 
 Configuration is stored in `~/.config/kohya/kohyaConfig.json`:
@@ -211,7 +237,10 @@ Configuration is stored in `~/.config/kohya/kohyaConfig.json`:
       "y": 100,
       "width": 1200,
       "height": 800
-    }
+    },
+    "runpodPodId": "abc123xyz",
+    "txt2ImgScriptPath": "/home/user/linuxMigration/kohyaTools/txt2imgComfy.py",
+    "comfyUrl": "http://127.0.0.1:8188"
   }
 }
 ```
